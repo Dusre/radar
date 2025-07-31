@@ -161,6 +161,7 @@
         let isAnimating = false;
         let animationInterval = null;
         let preloadedImages = new Map(); // Cache for preloaded radar images
+        let refreshInterval = null; // Store the refresh interval ID
         
         const timeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
 
@@ -341,20 +342,23 @@
             const params = { 
                 layers: 'Radar:suomi_dbz_eureffin',
                 format: 'image/png',
-                transparent: true
+                transparent: true,
+                _cacheBust: Date.now()
             };
             
             if (historicalTime) {
-                // Format time as ISO string
+                // Historical data - add time parameter
                 params.time = historicalTime.toISOString();
-                params._cacheBust = Date.now(); // Prevent caching
+                console.log('Setting radar to historical time:', params.time);
             } else {
-                // Live data - remove time parameter and add cache bust
-                delete params.time;
-                params._cacheBust = Date.now();
+                // Live data - explicitly remove any cached time parameter
+                console.log('Setting radar to live mode');
+                // This is the key fix - explicitly delete the time parameter from the layer's options
+                if (fmiRadarLayer.wmsParams) {
+                    delete fmiRadarLayer.wmsParams.time;
+                }
             }
             
-            // Add a small delay to ensure smooth transition
             fmiRadarLayer.setParams(params);
         }
 
@@ -363,15 +367,24 @@
             if (currentHistoryStep === 0) {
                 timeDisplay.textContent = 'Now (Live)';
             } else {
-                const minutesAgo = currentHistoryStep * HISTORY_STEP_MINUTES;
-                const historicalTime = new Date(Date.now() - minutesAgo * 60 * 1000);
-                timeDisplay.textContent = `${minutesAgo}min ago (${historicalTime.toLocaleTimeString('sv-SE', timeFormatOptions)})`;
+                const historicalTime = getHistoricalRadarTime();
+                if (historicalTime) {
+                    // Show just the time in HH:MM format like server timestamps
+                    timeDisplay.textContent = historicalTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    // Fallback calculation
+                    const minutesAgo = currentHistoryStep * HISTORY_STEP_MINUTES;
+                    const fallbackTime = new Date(Date.now() - minutesAgo * 60 * 1000);
+                    timeDisplay.textContent = fallbackTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                }
             }
         }
 
-        // --- 4. ANIMATION FUNCTIONS ---
         async function startAnimation() {
             if (isAnimating) return;
+            
+            // Stop auto-refresh first
+            stopAutoRefresh();
             
             isAnimating = true;
             const button = document.getElementById('animation-button');
@@ -385,7 +398,7 @@
             
             await preloadRadarImages();
             
-            status.textContent = 'Animation ready';
+            status.textContent = 'Animation running';
             status.className = 'status success';
             
             // Start from oldest data (step 12) and work towards live (step 0)
@@ -407,6 +420,7 @@
         function stopAnimation() {
             if (!isAnimating) return;
             
+            console.log('Stopping animation');
             isAnimating = false;
             const button = document.getElementById('animation-button');
             button.textContent = '▶ Play Animation';
@@ -416,6 +430,16 @@
                 clearInterval(animationInterval);
                 animationInterval = null;
             }
+            
+            // Return to live view
+            currentHistoryStep = 0;
+            updateHistorySlider();
+            
+            // Restart automatic refresh
+            startAutoRefresh();
+            
+            // Force immediate refresh
+            setTimeout(refreshAll, 100);
         }
         
         function updateHistorySlider() {
@@ -425,7 +449,28 @@
             updateTimeDisplay();
         }
 
-        // --- 4. DATA FETCHING & PARSING ---
+        // --- 5. AUTO REFRESH MANAGEMENT ---
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                console.log('Auto-refresh already running');
+                return;
+            }
+            
+            console.log('Starting auto-refresh');
+            refreshInterval = setInterval(refreshAll, REFRESH_INTERVAL_MS);
+            nextRefreshTimestamp = Date.now() + REFRESH_INTERVAL_MS;
+        }
+        
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                console.log('Stopping auto-refresh');
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+                nextRefreshTimestamp = null;
+            }
+        }
+
+        // --- 6. DATA FETCHING & PARSING ---
         async function fetchLightningData() { 
             const s=document.getElementById('status'); 
             try{
@@ -506,7 +551,7 @@
         
         function updateCountdownDisplay() { 
             const countdownEl = document.getElementById('next-update-countdown'); 
-            if (nextRefreshTimestamp) { 
+            if (nextRefreshTimestamp && !isAnimating) { 
                 const remainingMs = nextRefreshTimestamp - Date.now(); 
                 if (remainingMs <= 0) { 
                     countdownEl.textContent = 'Refreshing...'; 
@@ -516,6 +561,8 @@
                     const seconds = remainingSeconds % 60; 
                     countdownEl.textContent = `${minutes}:${String(seconds).padStart(2, '0')}`; 
                 } 
+            } else if (isAnimating) {
+                countdownEl.textContent = 'Animation mode';
             } else { 
                 countdownEl.textContent = '--'; 
             } 
@@ -523,12 +570,26 @@
 
         // --- 7. REFRESH LOGIC ---
         async function refreshAll() { 
+            console.log('refreshAll called, isAnimating:', isAnimating, 'currentHistoryStep:', currentHistoryStep);
+            
+            // Skip refresh during animation
+            if (isAnimating) {
+                console.log('Skipping refresh - animation running');
+                return;
+            }
+            
             const now = Date.now(); 
             radarLastUpdateTimestamp = now; 
-            await fetchLightningData(); 
-            updateLightning(); 
-            updateRadarLayer(); // Update radar with current history setting
-            nextRefreshTimestamp = Date.now() + REFRESH_INTERVAL_MS; 
+            
+            try {
+                await fetchLightningData(); 
+                updateLightning(); 
+                updateRadarLayer();
+                nextRefreshTimestamp = Date.now() + REFRESH_INTERVAL_MS; 
+                console.log('refreshAll completed successfully');
+            } catch (error) {
+                console.error('Error in refreshAll:', error);
+            }
         }
 
         // --- 8. INITIALIZATION ---
@@ -544,7 +605,17 @@
             
             document.getElementById('history-slider').addEventListener('input', e => {
                 if (isAnimating) stopAnimation();
-                currentHistoryStep = parseInt(e.target.value);
+                
+                const newStep = parseInt(e.target.value);
+                currentHistoryStep = newStep;
+                
+                // Manage auto refresh based on whether we're in live mode
+                if (currentHistoryStep === 0) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+                
                 updateRadarLayer();
                 updateTimeDisplay();
             });
@@ -553,8 +624,11 @@
             if (animationButton) {
                 animationButton.addEventListener('click', (e) => {
                     e.preventDefault();
-                    if (isAnimating) stopAnimation();
-                    else startAnimation();
+                    if (isAnimating) {
+                        stopAnimation();
+                    } else {
+                        startAnimation();
+                    }
                 });
             }
 
@@ -562,13 +636,30 @@
             const refreshBtn = document.getElementById('refresh-btn');
             if (refreshBtn) {
                 refreshBtn.addEventListener('click', async () => {
+                    console.log('Manual refresh clicked');
                     refreshBtn.disabled = true;
                     refreshBtn.textContent = 'Refreshing...';
                     
+                    // Stop animation if running
+                    if (isAnimating) {
+                        stopAnimation();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                    
+                    // Force to live mode
+                    currentHistoryStep = 0;
+                    document.getElementById('history-slider').value = 0;
+                    updateTimeDisplay();
+                    
+                    // Force refresh
                     await refreshAll();
+                    
+                    // Ensure auto-refresh is running
+                    startAutoRefresh();
                     
                     refreshBtn.disabled = false;
                     refreshBtn.innerHTML = '⟳ Manual Refresh';
+                    console.log('Manual refresh completed');
                 });
             }
 
@@ -588,8 +679,10 @@
                 });
             }
             
-            // Setup intervals
-            setInterval(refreshAll, REFRESH_INTERVAL_MS);
+            // Start automatic refresh system
+            startAutoRefresh();
+            
+            // Setup display update intervals
             setInterval(updateRadarAgeDisplay, 1000);
             setInterval(updateLightningAgeDisplay, 1000);
             setInterval(updateCountdownDisplay, 1000);
