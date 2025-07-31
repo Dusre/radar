@@ -171,13 +171,13 @@
         
         const map = L.map('map', {
             crs: crs_3067,
-            minZoom: 4,
+            minZoom: 1,
             maxZoom: 7
         }).setView([64.5, 26.0], 4);
 
         const localMapLayer = L.tileLayer('local_tiles/{z}/{y}/{x}.png', {
             attribution: 'Maanmittauslaitos (Local)',
-            minZoom: 4,
+            minZoom: 1,
             maxZoom: 7,
             errorUrl: '',
             tms: false
