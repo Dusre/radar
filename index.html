@@ -79,7 +79,6 @@
         .status.success { background-color: #1e602f; }
         .status.error { background-color: #721c24; }
 
-        /* --- STYLES FOR HIDE BUTTON AND HIDDEN STATE --- */
         #toggle-controls-btn {
             position: absolute;
             top: 2px;
@@ -112,7 +111,6 @@
 <body>
     <div id="map"></div>
     <div class="controls">
-        <!-- HIDE/SHOW BUTTON -->
         <button id="toggle-controls-btn" title="Hide Controls">×</button>
         
         <label> <input type="checkbox" id="lightning-toggle"> Show Lightning </label>
@@ -128,6 +126,10 @@
             <div class="time-display" id="time-display">Now (Live)</div>
             <button id="animation-button" style="width: 100%; margin-top: 5px; padding: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer;">
                 ▶ Play Animation
+            </button>
+            <!-- MANUAL REFRESH BUTTON -->
+            <button id="refresh-btn" style="width: 100%; margin-top: 8px; padding: 5px; background: #5a6268; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                ⟳ Manual Refresh
             </button>
         </div>
         
@@ -486,17 +488,6 @@
             lightningLayer.addData({type:"FeatureCollection",features:e}),document.getElementById("lightning-count").textContent=e.length 
         }
         
-        // --- 5. DATA FETCHING & PARSING ---
-        document.getElementById('lightning-toggle').addEventListener('change', updateLightning);
-        document.getElementById('opacity-slider').addEventListener('input', e => fmiRadarLayer.setOpacity(e.target.value));
-        
-        // History slider event listener
-        document.getElementById('history-slider').addEventListener('input', e => {
-            currentHistoryStep = parseInt(e.target.value);
-            updateRadarLayer();
-            updateTimeDisplay();
-        });
-
         function updateRadarAgeDisplay() { 
             const t=document.getElementById("radar-age"); 
             if(radarLastUpdateTimestamp){
@@ -567,13 +558,26 @@
                 });
             }
 
-            // --- HIDE/SHOW BUTTON LOGIC ---
+            // --- Manual Refresh Button Logic ---
+            const refreshBtn = document.getElementById('refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', async () => {
+                    refreshBtn.disabled = true;
+                    refreshBtn.textContent = 'Refreshing...';
+                    
+                    await refreshAll();
+                    
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '⟳ Manual Refresh';
+                });
+            }
+
+            // --- Hide/Show Button Logic ---
             const controlsPanel = document.querySelector('.controls');
             const toggleBtn = document.getElementById('toggle-controls-btn');
             if (toggleBtn && controlsPanel) {
                 toggleBtn.addEventListener('click', () => {
                     controlsPanel.classList.toggle('hidden');
-                    // Change button content for better UX
                     if (controlsPanel.classList.contains('hidden')) {
                         toggleBtn.innerHTML = '☰'; // Hamburger icon
                         toggleBtn.title = 'Show Controls';
