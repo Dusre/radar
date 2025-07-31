@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finnish Weather Radar with Real Lightning Data</title>
+    <!-- Libraries -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e; /* Dark background for the page */
+        }
+        #map {
+            flex-grow: 1;
+            background-color: #d7edff; /* Hides tile edges in Chrome */
+        }
+        .footer {
+            padding: 4px;
+            background-color: #1e1e1e; /* Dark theme */
+            text-align: center;
+            font-size: 0.8em;
+            color: #aaa; /* Light text */
+            border-top: 1px solid #444; /* Dark border */
+        }
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: #2c2c2c; /* Dark background */
+            color: #f0f0f0;      /* Light text */
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5); /* Stronger shadow for dark bg */
+            min-width: 200px;
+            transition: all 0.2s ease-in-out; /* Smooth transition for hiding */
+        }
+        .controls label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        .controls input[type="range"] {
+            width: 100%;
+        }
+        .slider-container {
+            margin: 8px 0;
+        }
+        .slider-label {
+            font-size: 0.8em;
+            color: #bbb; /* Lightened for dark theme */
+            margin-bottom: 3px;
+        }
+        .time-display {
+            font-size: 0.8em;
+            text-align: center;
+            margin-top: 3px;
+            color: #fff; /* Lightened for dark theme */
+            font-weight: bold;
+        }
+        .status {
+            font-size: 0.8em;
+            margin-top: 5px;
+            padding: 5px 8px;
+            border-radius: 3px;
+            color: #f0f0f0;
+        }
+        /* Dark theme status colors */
+        .status.loading { background-color: #795502; }
+        .status.success { background-color: #1e602f; }
+        .status.error { background-color: #721c24; }
+
+        /* --- STYLES FOR HIDE BUTTON AND HIDDEN STATE --- */
+        #toggle-controls-btn {
+            position: absolute;
+            top: 2px;
+            right: 3px;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 24px;
+            font-weight: bold;
+            line-height: 1;
+            padding: 5px;
+            cursor: pointer;
+            z-index: 1001; /* Ensure it's on top */
+        }
+        #toggle-controls-btn:hover {
+            color: #fff;
+        }
+        .controls.hidden {
+            min-width: 0;
+            padding: 0;
+            width: 45px;
+            height: 40px;
+            overflow: hidden;
+        }
+        .controls.hidden > *:not(#toggle-controls-btn) {
+            display: none; /* Hide all children except the toggle button */
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="controls">
+        <!-- HIDE/SHOW BUTTON -->
+        <button id="toggle-controls-btn" title="Hide Controls">×</button>
+        
+        <label> <input type="checkbox" id="lightning-toggle"> Show Lightning </label>
+        
+        <div class="slider-container">
+            <div class="slider-label">Radar Opacity</div>
+            <input type="range" id="opacity-slider" min="0.3" max="1" step="0.1" value="0.7">
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Radar Time</div>
+            <input type="range" id="history-slider" min="0" max="12" step="1" value="0">
+            <div class="time-display" id="time-display">Now (Live)</div>
+            <button id="animation-button" style="width: 100%; margin-top: 5px; padding: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                ▶ Play Animation
+            </button>
+        </div>
+        
+        <div style="font-size: 0.8em; margin-top: 5px;">
+            Lightning: <span style="color: #ff0000;">●</span> Fresh
+            <span style="color: #ff8800;">●</span> 10min
+        </div>
+        <div id="status" class="status">Ready</div>
+    </div>
+    <div class="footer">
+        Radar age: <span id="radar-age">--</span> |
+        Newest strike: <span id="data-age">--</span> |
+        Visible strikes: <span id="lightning-count">0</span> |
+        Next update in: <span id="next-update-countdown">--</span>
+    </div>
+    <script>
+        // --- 1. CONFIGURATION & STATE ---
+        const MAX_STRIKE_AGE_MINUTES = 15;
+        const REFRESH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+        const HISTORY_STEP_MINUTES = 5; // 5-minute steps
+        const MAX_HISTORY_STEPS = 12; // 12 steps = 1 hour
+        const ANIMATION_INTERVAL_MS = 1000; // 1 second between frames (slower for smoother loading)
+        
+        let lightningData = { type: "FeatureCollection", features: [] };
+        let newestStrikeTimestamp = null;
+        let radarLastUpdateTimestamp = null;
+        let nextRefreshTimestamp = null;
+        let currentHistoryStep = 0; // 0 = live, 1+ = minutes ago
+        let isAnimating = false;
+        let animationInterval = null;
+        let preloadedImages = new Map(); // Cache for preloaded radar images
+        
+        const timeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+
+        // --- 2. MAP & LAYER SETUP ---
+        const proj4_3067_def = '+proj=utm +zone=35 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
+        const crs_3067 = new L.Proj.CRS('EPSG:3067', proj4_3067_def, { resolutions: [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5], origin: [-548576, 8388608] });
+        
+        const map = L.map('map', {
+            crs: crs_3067,
+            minZoom: 4,
+            maxZoom: 7
+        }).setView([64.5, 26.0], 4);
+
+        const localMapLayer = L.tileLayer('local_tiles/{z}/{y}/{x}.png', {
+            attribution: 'Maanmittauslaitos (Local)',
+            minZoom: 4,
+            maxZoom: 7,
+            errorUrl: '',
+            tms: false
+        }).addTo(map);
+
+        const fmiRadarLayer = L.tileLayer.wms('https://openwms.fmi.fi/geoserver/Radar/wms', { 
+            layers: 'Radar:suomi_dbz_eureffin', 
+            format: 'image/png', 
+            transparent: true, 
+            opacity: 0.7, 
+            zIndex: 10, 
+            attribution: 'Säätutka © FMI',
+            // Add these options for smoother loading
+            keepBuffer: 2,
+            updateWhenIdle: false,
+            updateWhenZooming: false
+        }).addTo(map);
+        
+        const canvasRenderer = L.canvas({ padding: 0.5 });
+        const lightningLayer = L.geoJSON(null, { 
+            renderer: canvasRenderer, 
+            pointToLayer: (f,l) => { 
+                const a=(Date.now()-f.properties.timestamp)/60000; 
+                let c='#ffaa00'; 
+                if(a<5)c='#ff0000'; 
+                else if(a<10)c='#ff8800'; 
+                return L.circleMarker(l, {radius:4,fillColor:c,color:'#000',weight:1,opacity:1,fillOpacity:0.9}); 
+            }, 
+            onEachFeature: (f,l) => { 
+                const p=f.properties; 
+                const a=Math.round((Date.now()-p.timestamp)/60000); 
+                l.bindPopup(`<strong>Lightning Strike</strong><br>Time: ${new Date(p.timestamp).toLocaleTimeString('sv-SE',timeFormatOptions)}<br>Intensity: ${Math.round(p.intensity)} kA<br>Age: ${a} minutes ago`); 
+            } 
+        }).addTo(map);
+
+        // --- 3. RADAR HISTORY FUNCTIONS ---
+        let availableRadarTimes = [];
+        
+        async function fetchAvailableRadarTimes() {
+            try {
+                // Get capabilities to find available times
+                const capabilitiesUrl = 'https://openwms.fmi.fi/geoserver/Radar/wms?service=WMS&version=1.1.1&request=GetCapabilities';
+                const response = await fetch(capabilitiesUrl);
+                const text = await response.text();
+                
+                // Parse XML to extract time dimension
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(text, 'text/xml');
+                
+                // Look for time dimension in the radar layer
+                const dimensions = xmlDoc.querySelectorAll('Dimension[name="time"], dimension[name="time"]');
+                for (let dim of dimensions) {
+                    const timeContent = dim.textContent.trim();
+                    if (timeContent.includes('/')) {
+                        // Parse time range format: start/end/period
+                        const parts = timeContent.split('/');
+                        if (parts.length >= 2) {
+                            const endTime = new Date(parts[1]);
+                            const times = [];
+                            
+                            // Generate times going back 1 hour in 5-minute steps
+                            for (let i = 0; i <= 12; i++) {
+                                const time = new Date(endTime.getTime() - (i * 5 * 60 * 1000));
+                                times.push(time);
+                            }
+                            availableRadarTimes = times;
+                            return;
+                        }
+                    }
+                }
+                
+                // Fallback: generate approximate times
+                generateFallbackTimes();
+                
+            } catch (error) {
+                console.warn('Could not fetch radar capabilities, using fallback times:', error);
+                generateFallbackTimes();
+            }
+        }
+        
+        function generateFallbackTimes() {
+            // Generate times rounded to nearest 5-minute mark
+            const now = new Date();
+            const roundedNow = new Date(now);
+            roundedNow.setMinutes(Math.floor(now.getMinutes() / 5) * 5);
+            roundedNow.setSeconds(0);
+            roundedNow.setMilliseconds(0);
+            
+            const times = [];
+            for (let i = 0; i <= 12; i++) {
+                const time = new Date(roundedNow.getTime() - (i * 5 * 60 * 1000));
+                times.push(time);
+            }
+            availableRadarTimes = times;
+        }
+
+        function getHistoricalRadarTime() {
+            if (currentHistoryStep === 0) return null; // Live data
+            if (availableRadarTimes.length > currentHistoryStep) {
+                return availableRadarTimes[currentHistoryStep];
+            }
+            // Fallback calculation
+            const minutesAgo = currentHistoryStep * HISTORY_STEP_MINUTES;
+            const time = new Date(Date.now() - minutesAgo * 60 * 1000);
+            // Round to nearest 5-minute mark
+            time.setMinutes(Math.floor(time.getMinutes() / 5) * 5);
+            time.setSeconds(0);
+            time.setMilliseconds(0);
+            return time;
+        }
+
+        // Preload radar images for smooth animation
+        async function preloadRadarImages() {
+            const bounds = map.getBounds();
+            const zoom = map.getZoom();
+            const size = map.getSize();
+            
+            for (let step = 0; step <= MAX_HISTORY_STEPS; step++) {
+                const timeKey = step === 0 ? 'live' : availableRadarTimes[step]?.toISOString();
+                if (!timeKey) continue;
+                
+                if (preloadedImages.has(timeKey)) continue; // Already preloaded
+                
+                try {
+                    const params = new URLSearchParams({
+                        service: 'WMS',
+                        version: '1.1.1',
+                        request: 'GetMap',
+                        layers: 'Radar:suomi_dbz_eureffin',
+                        format: 'image/png',
+                        transparent: 'true',
+                        width: size.x,
+                        height: size.y,
+                        srs: 'EPSG:3067',
+                        bbox: `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
+                    });
+                    
+                    if (step > 0 && availableRadarTimes[step]) {
+                        params.set('time', availableRadarTimes[step].toISOString());
+                    }
+                    
+                    const url = `https://openwms.fmi.fi/geoserver/Radar/wms?${params.toString()}`;
+                    
+                    // Preload image
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = reject;
+                        img.src = url;
+                    });
+                    
+                    preloadedImages.set(timeKey, img);
+                } catch (error) {
+                    console.warn(`Failed to preload radar image for step ${step}:`, error);
+                }
+            }
+        }
+
+        function updateRadarLayer() {
+            const historicalTime = getHistoricalRadarTime();
+            const params = { 
+                layers: 'Radar:suomi_dbz_eureffin',
+                format: 'image/png',
+                transparent: true
+            };
+            
+            if (historicalTime) {
+                // Format time as ISO string
+                params.time = historicalTime.toISOString();
+                params._cacheBust = Date.now(); // Prevent caching
+            } else {
+                // Live data - remove time parameter and add cache bust
+                delete params.time;
+                params._cacheBust = Date.now();
+            }
+            
+            // Add a small delay to ensure smooth transition
+            fmiRadarLayer.setParams(params);
+        }
+
+        function updateTimeDisplay() {
+            const timeDisplay = document.getElementById('time-display');
+            if (currentHistoryStep === 0) {
+                timeDisplay.textContent = 'Now (Live)';
+            } else {
+                const minutesAgo = currentHistoryStep * HISTORY_STEP_MINUTES;
+                const historicalTime = new Date(Date.now() - minutesAgo * 60 * 1000);
+                timeDisplay.textContent = `${minutesAgo}min ago (${historicalTime.toLocaleTimeString('sv-SE', timeFormatOptions)})`;
+            }
+        }
+
+        // --- 4. ANIMATION FUNCTIONS ---
+        async function startAnimation() {
+            if (isAnimating) return;
+            
+            isAnimating = true;
+            const button = document.getElementById('animation-button');
+            button.textContent = '⏸ Pause Animation';
+            button.style.background = '#dc3545';
+            
+            // Preload images before starting animation
+            const status = document.getElementById('status');
+            status.textContent = 'Preloading animation frames...';
+            status.className = 'status loading';
+            
+            await preloadRadarImages();
+            
+            status.textContent = 'Animation ready';
+            status.className = 'status success';
+            
+            // Start from oldest data (step 12) and work towards live (step 0)
+            currentHistoryStep = MAX_HISTORY_STEPS;
+            updateHistorySlider();
+            
+            animationInterval = setInterval(() => {
+                currentHistoryStep--;
+                
+                if (currentHistoryStep < 0) {
+                    // Loop back to oldest
+                    currentHistoryStep = MAX_HISTORY_STEPS;
+                }
+                
+                updateHistorySlider();
+            }, ANIMATION_INTERVAL_MS);
+        }
+        
+        function stopAnimation() {
+            if (!isAnimating) return;
+            
+            isAnimating = false;
+            const button = document.getElementById('animation-button');
+            button.textContent = '▶ Play Animation';
+            button.style.background = '#007cba';
+            
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+        }
+        
+        function updateHistorySlider() {
+            const slider = document.getElementById('history-slider');
+            slider.value = currentHistoryStep;
+            updateRadarLayer();
+            updateTimeDisplay();
+        }
+
+        // --- 4. DATA FETCHING & PARSING ---
+        async function fetchLightningData() { 
+            const s=document.getElementById('status'); 
+            try{
+                s.textContent='Loading lightning...';
+                s.className='status loading'; 
+                const e=new Date(),t=new Date(e.getTime()-30*60*1000); 
+                const a=`https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::lightning::simple&starttime=${t.toISOString()}&endtime=${e.toISOString()}&bbox=19,59,32,71`; 
+                const r=await fetch(a); 
+                if(!r.ok)throw new Error(`HTTP ${r.status}`); 
+                const n=await r.text(),o=new DOMParser,i=o.parseFromString(n,"text/xml"); 
+                if(i.querySelector("parsererror"))throw new Error("XML parsing error"); 
+                const l=parseLightningXML(i); 
+                s.textContent=`Loaded ${l.length} total strikes`;
+                s.className='status success';
+                if(l.length>0){
+                    const c=Math.max(...l.map(d=>d.timestamp));
+                    c>newestStrikeTimestamp&&(newestStrikeTimestamp=c)
+                }
+                lightningData={type:"FeatureCollection",features:l.map(d=>({type:"Feature",geometry:{type:"Point",coordinates:[d.lng,d.lat]},properties:d}))}
+            }catch(c){
+                console.error("Error fetching lightning data:",c);
+                s.textContent=`Error: ${c.message}`;
+                s.className='status error';
+                lightningData={type:"FeatureCollection",features:[]}
+            } 
+        }
+        
+        function parseLightningXML(xmlDoc) { 
+            const t=[]; 
+            return xmlDoc.querySelectorAll("wfs\\:member, member").forEach(e=>{
+                try{
+                    const r=e.querySelector("BsWfsElement");
+                    if(!r)return;
+                    const a=e.querySelector("Location");
+                    if(!a)return;
+                    const o=a.querySelector("Point pos, pos");
+                    if(!o)return;
+                    const i=o.textContent.trim().split(" ");
+                    if(i.length<2)return;
+                    const l=parseFloat(i[0]),s=parseFloat(i[1]);
+                    if(isNaN(l)||isNaN(s))return;
+                    const n=e.querySelector("Time");
+                    let c=n?new Date(n.textContent.trim()).getTime():Date.now();
+                    const m=e.querySelector("ParameterValue > ParameterValue");
+                    let d=m?Math.abs(parseFloat(m.textContent)):50;
+                    t.push({lat:l,lng:s,timestamp:c,intensity:d})
+                }catch(r){
+                    console.warn("Error parsing a strike:",r)
+                }
+            }),t 
+        }
+        
+        function updateLightning() { 
+            lightningLayer.clearLayers(); 
+            if(!document.getElementById("lightning-toggle").checked){
+                document.getElementById("lightning-count").textContent="0";
+                return
+            }
+            const t=Date.now(),e=lightningData.features.filter(e=>(t-e.properties.timestamp)/6e4<MAX_STRIKE_AGE_MINUTES);
+            lightningLayer.addData({type:"FeatureCollection",features:e}),document.getElementById("lightning-count").textContent=e.length 
+        }
+        
+        // --- 5. DATA FETCHING & PARSING ---
+        document.getElementById('lightning-toggle').addEventListener('change', updateLightning);
+        document.getElementById('opacity-slider').addEventListener('input', e => fmiRadarLayer.setOpacity(e.target.value));
+        
+        // History slider event listener
+        document.getElementById('history-slider').addEventListener('input', e => {
+            currentHistoryStep = parseInt(e.target.value);
+            updateRadarLayer();
+            updateTimeDisplay();
+        });
+
+        function updateRadarAgeDisplay() { 
+            const t=document.getElementById("radar-age"); 
+            if(radarLastUpdateTimestamp){
+                const e=Math.round((Date.now()-radarLastUpdateTimestamp)/1e3),r=Math.floor(e/60),a=e%60;
+                t.textContent=`${r}m ${String(a).padStart(2,"0")}s ago`
+            }else t.textContent="--"
+        }
+        
+        function updateLightningAgeDisplay() { 
+            const t=document.getElementById("data-age"); 
+            if(newestStrikeTimestamp){
+                const e=Math.round((Date.now()-newestStrikeTimestamp)/1e3),r=Math.floor(e/60),a=e%60;
+                t.textContent=`${r}m ${String(a).padStart(2,"0")}s ago`
+            }else t.textContent="--"
+        }
+        
+        function updateCountdownDisplay() { 
+            const countdownEl = document.getElementById('next-update-countdown'); 
+            if (nextRefreshTimestamp) { 
+                const remainingMs = nextRefreshTimestamp - Date.now(); 
+                if (remainingMs <= 0) { 
+                    countdownEl.textContent = 'Refreshing...'; 
+                } else { 
+                    const remainingSeconds = Math.round(remainingMs / 1000); 
+                    const minutes = Math.floor(remainingSeconds / 60); 
+                    const seconds = remainingSeconds % 60; 
+                    countdownEl.textContent = `${minutes}:${String(seconds).padStart(2, '0')}`; 
+                } 
+            } else { 
+                countdownEl.textContent = '--'; 
+            } 
+        }
+
+        // --- 7. REFRESH LOGIC ---
+        async function refreshAll() { 
+            const now = Date.now(); 
+            radarLastUpdateTimestamp = now; 
+            await fetchLightningData(); 
+            updateLightning(); 
+            updateRadarLayer(); // Update radar with current history setting
+            nextRefreshTimestamp = Date.now() + REFRESH_INTERVAL_MS; 
+        }
+
+        // --- 8. INITIALIZATION ---
+        async function initialize() {
+            console.log('Initializing application...');
+            await fetchAvailableRadarTimes();
+            await refreshAll();
+            updateTimeDisplay();
+            
+            // Setup event listeners
+            document.getElementById('lightning-toggle').addEventListener('change', updateLightning);
+            document.getElementById('opacity-slider').addEventListener('input', e => fmiRadarLayer.setOpacity(e.target.value));
+            
+            document.getElementById('history-slider').addEventListener('input', e => {
+                if (isAnimating) stopAnimation();
+                currentHistoryStep = parseInt(e.target.value);
+                updateRadarLayer();
+                updateTimeDisplay();
+            });
+            
+            const animationButton = document.getElementById('animation-button');
+            if (animationButton) {
+                animationButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (isAnimating) stopAnimation();
+                    else startAnimation();
+                });
+            }
+
+            // --- HIDE/SHOW BUTTON LOGIC ---
+            const controlsPanel = document.querySelector('.controls');
+            const toggleBtn = document.getElementById('toggle-controls-btn');
+            if (toggleBtn && controlsPanel) {
+                toggleBtn.addEventListener('click', () => {
+                    controlsPanel.classList.toggle('hidden');
+                    // Change button content for better UX
+                    if (controlsPanel.classList.contains('hidden')) {
+                        toggleBtn.innerHTML = '☰'; // Hamburger icon
+                        toggleBtn.title = 'Show Controls';
+                    } else {
+                        toggleBtn.innerHTML = '×'; // 'x' symbol
+                        toggleBtn.title = 'Hide Controls';
+                    }
+                });
+            }
+            
+            // Setup intervals
+            setInterval(refreshAll, REFRESH_INTERVAL_MS);
+            setInterval(updateRadarAgeDisplay, 1000);
+            setInterval(updateLightningAgeDisplay, 1000);
+            setInterval(updateCountdownDisplay, 1000);
+            setInterval(fetchAvailableRadarTimes, 10 * 60 * 1000);
+        }
+        
+        // Wait for DOM to be fully loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initialize);
+        } else {
+            initialize();
+        }
+    </script>
+</body>
+</html>
