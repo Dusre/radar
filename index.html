@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finnish Weather Radar with Real Lightning Data</title>
+    <title>Suomen Säätutka Lämpötila- & Salamadatalla</title>
     <!-- Libraries -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -41,7 +41,9 @@
             padding: 10px;
             border-radius: 5px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.5); /* Stronger shadow for dark bg */
-            min-width: 200px;
+            min-width: 220px;
+            max-height: 90vh;
+            overflow-y: auto;
             transition: all 0.2s ease-in-out; /* Smooth transition for hiding */
         }
         .controls label {
@@ -79,10 +81,24 @@
         .status.success { background-color: #1e602f; }
         .status.error { background-color: #721c24; }
 
+        .legend {
+            font-size: 0.8em;
+            margin-top: 8px;
+            padding: 8px;
+            background: #1a1a1a;
+            border-radius: 3px;
+            border: 1px solid #444;
+        }
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
         #toggle-controls-btn {
             position: absolute;
             top: 2px;
-            right: 3px;
+            right: 6px;
             background: none;
             border: none;
             color: #aaa;
@@ -106,44 +122,70 @@
         .controls.hidden > *:not(#toggle-controls-btn) {
             display: none; /* Hide all children except the toggle button */
         }
+        /* Dark theme for popups */
+        .dark-popup .leaflet-popup-content-wrapper {
+            background: #2c2c2c;
+            color: #f0f0f0;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        .dark-popup .leaflet-popup-content {
+            color: #f0f0f0;
+        }
+        .dark-popup .leaflet-popup-tip {
+            background: #2c2c2c;
+        }
+        .dark-popup a.leaflet-popup-close-button {
+            color: #aaa;
+        }
+        .dark-popup a.leaflet-popup-close-button:hover {
+            color: #fff;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <div class="controls">
-        <button id="toggle-controls-btn" title="Hide Controls">×</button>
+    <div class="controls hidden">
+        <button id="toggle-controls-btn" title="Näytä säädöt">☰</button>
         
-        <label> <input type="checkbox" id="lightning-toggle"> Show Lightning </label>
+        <label> <input type="checkbox" id="lightning-toggle"> Näytä salamat </label>
+        <label> <input type="checkbox" id="temperature-toggle"> Näytä lämpötilat </label>
         
         <div class="slider-container">
-            <div class="slider-label">Radar Opacity</div>
+            <div class="slider-label">Tutkan läpinäkyvyys</div>
             <input type="range" id="opacity-slider" min="0.3" max="1" step="0.1" value="0.7">
         </div>
         
+
+        
         <div class="slider-container">
-            <div class="slider-label">Radar Time</div>
+            <div class="slider-label">Tutkan aika</div>
             <input type="range" id="history-slider" min="0" max="12" step="1" value="0">
-            <div class="time-display" id="time-display">Now (Live)</div>
+            <div class="time-display" id="time-display">Nyt (Live)</div>
             <button id="animation-button" style="width: 100%; margin-top: 5px; padding: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                ▶ Play Animation
+                ▶ Toista animaatio
             </button>
             <!-- MANUAL REFRESH BUTTON -->
             <button id="refresh-btn" style="width: 100%; margin-top: 8px; padding: 5px; background: #5a6268; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                ⟳ Manual Refresh
+                ⟳ Päivitä manuaalisesti
             </button>
         </div>
         
         <div style="font-size: 0.8em; margin-top: 5px;">
-            Lightning: <span style="color: #ff0000;">●</span> Fresh
+            Salamat: <span style="color: #ff0000;">●</span> Tuore
             <span style="color: #ff8800;">●</span> 10min
         </div>
-        <div id="status" class="status">Ready</div>
+        
+
+        
+        <div id="status" class="status">Valmis</div>
     </div>
     <div class="footer">
-        Radar age: <span id="radar-age">--</span> |
-        Newest strike: <span id="data-age">--</span> |
-        Visible strikes: <span id="lightning-count">0</span> |
-        Next update in: <span id="next-update-countdown">--</span>
+        Tutkan ikä: <span id="radar-age">--</span> |
+        Uusin salama: <span id="data-age">--</span> |
+        Näkyviä salamoita: <span id="lightning-count">0</span> |
+        Lämpötila-asemia: <span id="temp-count">0</span> |
+        Seuraava päivitys: <span id="next-update-countdown">--</span>
     </div>
     <script>
         // --- 1. CONFIGURATION & STATE ---
@@ -162,6 +204,7 @@
         let animationInterval = null;
         let preloadedImages = new Map(); // Cache for preloaded radar images
         let refreshInterval = null; // Store the refresh interval ID
+        let temperatureStationCount = 0; // Track number of temperature stations
         
         const timeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
 
@@ -169,16 +212,40 @@
         const proj4_3067_def = '+proj=utm +zone=35 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
         const crs_3067 = new L.Proj.CRS('EPSG:3067', proj4_3067_def, { resolutions: [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5], origin: [-548576, 8388608] });
         
+        // --- START: Remember Map Position ---
+        // 1. Get the last saved position from localStorage, or use defaults.
+        let initialView = [64.5, 26.0];
+        let initialZoom = 4;
+        try {
+            const savedPosition = localStorage.getItem('mapPosition');
+            if (savedPosition) {
+                const parsed = JSON.parse(savedPosition);
+                // --- FIX: Use parseFloat and a !isNaN check for robustness ---
+                const lat = parseFloat(parsed.lat);
+                const lng = parseFloat(parsed.lng);
+                const zoom = parseInt(parsed.zoom, 10);
+
+                if (!isNaN(lat) && !isNaN(lng) && !isNaN(zoom)) {
+                    initialView = [lat, lng];
+                    initialZoom = zoom;
+                    console.log(`Restored map position to ${lat},${lng} at zoom ${zoom}`);
+                }
+            }
+        } catch (e) {
+            console.error('Could not restore map position from localStorage:', e);
+        }
+        // --- END: Remember Map Position ---
+
         const map = L.map('map', {
             crs: crs_3067,
             minZoom: 1,
-            maxZoom: 7
-        }).setView([64.5, 26.0], 4);
+            maxZoom: 8
+        }).setView(initialView, initialZoom); // Use the retrieved or default values
 
         const localMapLayer = L.tileLayer('local_tiles/{z}/{y}/{x}.png', {
-            attribution: 'Maanmittauslaitos (Local)',
+            attribution: 'Maanmittauslaitos',
             minZoom: 1,
-            maxZoom: 7,
+            maxZoom: 8,
             errorUrl: '',
             tms: false
         }).addTo(map);
@@ -195,6 +262,11 @@
             updateWhenIdle: false,
             updateWhenZooming: false
         }).addTo(map);
+
+        // Temperature layer - FMI doesn't provide temperature as WMS raster layers
+        // Instead, we'll use point observations from WFS and display them as markers
+        let temperatureLayer = null;
+        let temperatureStations = L.layerGroup();
         
         const canvasRenderer = L.canvas({ padding: 0.5 });
         const lightningLayer = L.geoJSON(null, { 
@@ -209,11 +281,183 @@
             onEachFeature: (f,l) => { 
                 const p=f.properties; 
                 const a=Math.round((Date.now()-p.timestamp)/60000); 
-                l.bindPopup(`<strong>Lightning Strike</strong><br>Time: ${new Date(p.timestamp).toLocaleTimeString('sv-SE',timeFormatOptions)}<br>Intensity: ${Math.round(p.intensity)} kA<br>Age: ${a} minutes ago`); 
+                l.bindPopup(`<strong>Salama</strong><br>Aika: ${new Date(p.timestamp).toLocaleTimeString('sv-SE',timeFormatOptions)}<br>Voimakkuus: ${Math.round(p.intensity)} kA<br>Ikä: ${a} minuuttia sitten`, { className: 'dark-popup' }); 
             } 
         }).addTo(map);
 
-        // --- 3. RADAR HISTORY FUNCTIONS ---
+        // --- 3. TEMPERATURE DATA MANAGEMENT ---
+        async function fetchTemperatureData() {
+            try {
+                const endTime = new Date();
+                const startTime = new Date(endTime.getTime() - 15 * 60 * 1000); // Last 15 minutes for better coverage
+                
+                const url = `https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::weather::timevaluepair&parameters=temperature&starttime=${startTime.toISOString()}&endtime=${endTime.toISOString()}&bbox=19,59,32,71`;
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                
+                if (xmlDoc.querySelector('parsererror')) {
+                    throw new Error('XML parsing error');
+                }
+                
+                return parseTemperatureXML(xmlDoc);
+            } catch (error) {
+                console.error('Error fetching temperature data:', error);
+                return [];
+            }
+        }
+
+        function parseTemperatureXML(xmlDoc) {
+            const locations = new Map(); // Use location coordinates as key instead of station ID
+            
+            // Parse WFS response for temperature observations
+            xmlDoc.querySelectorAll('wfs\\:member, member').forEach(member => {
+                try {
+                    // Find the position element (gml:pos) which contains lat/lon
+                    const posElement = member.querySelector('gml\\:pos, pos');
+                    if (!posElement) return;
+
+                    const coords = posElement.textContent.trim().split(' ');
+                    if (coords.length < 2) return;
+                    
+                    const lat = parseFloat(coords[0]);
+                    const lng = parseFloat(coords[1]);
+                    if (isNaN(lat) || isNaN(lng)) return;
+                    
+                    // Create a location key based on rounded coordinates to group nearby stations
+                    const locationKey = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
+
+                    // Get station ID from the identifier element
+                    const stationIdEl = member.querySelector('gml\\:identifier[codeSpace="http://xml.fmi.fi/namespace/stationcode/fmisid"], identifier[codeSpace="http://xml.fmi.fi/namespace/stationcode/fmisid"]');
+                    const stationId = stationIdEl ? stationIdEl.textContent.trim() : 'unknown';
+
+                    // CORRECTLY get station name using the specific codeSpace attribute
+                    let stationNameEl = member.querySelector('gml\\:name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"]');
+                    if (!stationNameEl) { // Fallback for browsers that might handle namespaces differently
+                        stationNameEl = member.querySelector('name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"]');
+                    }
+                    const stationName = stationNameEl ? stationNameEl.textContent.trim() : stationId;
+                    
+                    // Get all temperature readings for this location
+                    const timeValuePairs = member.querySelectorAll('om\\:result, result');
+                    timeValuePairs.forEach(result => {
+                        const measurement = result.querySelector('wml2\\:MeasurementTVP, MeasurementTVP');
+                        if(!measurement) return;
+
+                        const timeEl = measurement.querySelector('wml2\\:time, time');
+                        const valueEl = measurement.querySelector('wml2\\:value, value');
+                        
+                        if (timeEl && valueEl && valueEl.textContent.trim() !== 'NaN' && valueEl.textContent.trim() !== '') {
+                            const temp = parseFloat(valueEl.textContent);
+                            if (!isNaN(temp) && temp > -50 && temp < 50) { // Sanity check for temperature range
+                                const time = new Date(timeEl.textContent);
+                                
+                                // Only keep the most recent reading for each location
+                                if (!locations.has(locationKey) || locations.get(locationKey).time < time) {
+                                    locations.set(locationKey, {
+                                        lat, lng, 
+                                        temperature: temp, 
+                                        time: time,
+                                        stationId: stationId,
+                                        stationName: stationName
+                                    });
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.warn('Error parsing temperature station:', error);
+                }
+            });
+            
+            const result = Array.from(locations.values());
+            console.log(`Parsed ${result.length} unique temperature locations from XML`);
+            return result;
+        }
+
+        function getTemperatureColor(temp) {
+            if (temp < -20) return '#000080';      // Dark blue
+            if (temp < -10) return '#0040ff';      // Blue
+            if (temp < 0) return '#00ffff';        // Cyan
+            if (temp < 10) return '#00ff00';       // Green
+            if (temp < 20) return '#ffff00';       // Yellow
+            if (temp < 30) return '#ff8000';       // Orange
+            return '#ff0000';                      // Red
+        }
+
+        async function updateTemperatureLayer() {
+            const isVisible = document.getElementById('temperature-toggle').checked;
+            
+            if (isVisible) {
+                if (!map.hasLayer(temperatureStations)) {
+                    map.addLayer(temperatureStations);
+                }
+                
+                // Fetch and display temperature data
+                const status = document.getElementById('status');
+                const originalText = status.textContent;
+                status.textContent = 'Ladataan lämpötiloja...';
+                status.className = 'status loading';
+                
+                const tempData = await fetchTemperatureData();
+                
+                // Clear existing temperature markers
+                temperatureStations.clearLayers();
+                temperatureStationCount = 0;
+                
+                // Add temperature labels with colored backgrounds (no separate markers)
+                tempData.forEach(station => {
+                    const bgColor = getTemperatureColor(station.temperature);
+                    
+                    // Create only the temperature label with colored background
+                    const label = L.marker([station.lat, station.lng], {
+                        icon: L.divIcon({
+                            className: 'temp-label',
+                            html: `<div style="background: ${bgColor}; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; color: #000; border: 1px solid #333; box-shadow: 0 1px 3px rgba(0,0,0,0.3); text-shadow: 0 0 2px rgba(255,255,255,0.8);">${station.temperature.toFixed(0)}°</div>`,
+                            iconSize: [30, 16],
+                            iconAnchor: [15, 8]
+                        })
+                    });
+                    
+                    // Create the popup content
+                    const ageMinutes = Math.round((Date.now() - station.time.getTime()) / 60000);
+                    const popupContent = `
+                        <strong>Lämpötila-asema</strong><br>
+                        Nimi: ${station.stationName}<br>
+                        Lämpötila: <strong>${station.temperature.toFixed(1)}°C</strong><br>
+                        Aika: ${station.time.toLocaleTimeString('sv-SE', timeFormatOptions)}<br>
+                        Ikä: ${ageMinutes} minuuttia sitten<br>
+                        Sijainti: ${station.lat.toFixed(4)}, ${station.lng.toFixed(4)}
+                    `;
+
+                    // Bind popup to the label
+                    label.bindPopup(popupContent, { className: 'dark-popup' });
+                    
+                    temperatureStations.addLayer(label);
+                    temperatureStationCount++;
+                });
+                
+                // Update status and counter
+                status.textContent = originalText;
+                status.className = 'status success';
+                document.getElementById('temp-count').textContent = temperatureStationCount;
+                console.log(`Loaded ${temperatureStationCount} temperature stations`);
+                
+            } else {
+                if (map.hasLayer(temperatureStations)) {
+                    map.removeLayer(temperatureStations);
+                }
+                temperatureStationCount = 0;
+                document.getElementById('temp-count').textContent = '0';
+                console.log('Temperature layer removed from map');
+            }
+        }
+
+        // --- 4. RADAR HISTORY FUNCTIONS ---
         let availableRadarTimes = [];
         
         async function fetchAvailableRadarTimes() {
@@ -365,7 +609,7 @@
         function updateTimeDisplay() {
             const timeDisplay = document.getElementById('time-display');
             if (currentHistoryStep === 0) {
-                timeDisplay.textContent = 'Now (Live)';
+                timeDisplay.textContent = 'Nyt (Live)';
             } else {
                 const historicalTime = getHistoricalRadarTime();
                 if (historicalTime) {
@@ -388,17 +632,17 @@
             
             isAnimating = true;
             const button = document.getElementById('animation-button');
-            button.textContent = '⏸ Pause Animation';
+            button.textContent = '⏸ Pysäytä animaatio';
             button.style.background = '#dc3545';
             
             // Preload images before starting animation
             const status = document.getElementById('status');
-            status.textContent = 'Preloading animation frames...';
+            status.textContent = 'Esiladataan animaatiota...';
             status.className = 'status loading';
             
             await preloadRadarImages();
             
-            status.textContent = 'Animation running';
+            status.textContent = 'Animaatio käynnissä';
             status.className = 'status success';
             
             // Start from oldest data (step 12) and work towards live (step 0)
@@ -423,7 +667,7 @@
             console.log('Stopping animation');
             isAnimating = false;
             const button = document.getElementById('animation-button');
-            button.textContent = '▶ Play Animation';
+            button.textContent = '▶ Toista animaatio';
             button.style.background = '#007cba';
             
             if (animationInterval) {
@@ -474,7 +718,7 @@
         async function fetchLightningData() { 
             const s=document.getElementById('status'); 
             try{
-                s.textContent='Loading lightning...';
+                s.textContent='Ladataan salamoita...';
                 s.className='status loading'; 
                 const e=new Date(),t=new Date(e.getTime()-30*60*1000); 
                 const a=`https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::lightning::simple&starttime=${t.toISOString()}&endtime=${e.toISOString()}&bbox=19,59,32,71`; 
@@ -483,7 +727,7 @@
                 const n=await r.text(),o=new DOMParser,i=o.parseFromString(n,"text/xml"); 
                 if(i.querySelector("parsererror"))throw new Error("XML parsing error"); 
                 const l=parseLightningXML(i); 
-                s.textContent=`Loaded ${l.length} total strikes`;
+                s.textContent=`Ladattu ${l.length} salamaa`;
                 s.className='status success';
                 if(l.length>0){
                     const c=Math.max(...l.map(d=>d.timestamp));
@@ -492,7 +736,7 @@
                 lightningData={type:"FeatureCollection",features:l.map(d=>({type:"Feature",geometry:{type:"Point",coordinates:[d.lng,d.lat]},properties:d}))}
             }catch(c){
                 console.error("Error fetching lightning data:",c);
-                s.textContent=`Error: ${c.message}`;
+                s.textContent=`Virhe: ${c.message}`;
                 s.className='status error';
                 lightningData={type:"FeatureCollection",features:[]}
             } 
@@ -537,7 +781,7 @@
             const t=document.getElementById("radar-age"); 
             if(radarLastUpdateTimestamp){
                 const e=Math.round((Date.now()-radarLastUpdateTimestamp)/1e3),r=Math.floor(e/60),a=e%60;
-                t.textContent=`${r}m ${String(a).padStart(2,"0")}s ago`
+                t.textContent=`${r}m ${String(a).padStart(2,"0")}s sitten`
             }else t.textContent="--"
         }
         
@@ -545,7 +789,7 @@
             const t=document.getElementById("data-age"); 
             if(newestStrikeTimestamp){
                 const e=Math.round((Date.now()-newestStrikeTimestamp)/1e3),r=Math.floor(e/60),a=e%60;
-                t.textContent=`${r}m ${String(a).padStart(2,"0")}s ago`
+                t.textContent=`${r}m ${String(a).padStart(2,"0")}s sitten`
             }else t.textContent="--"
         }
         
@@ -554,7 +798,7 @@
             if (nextRefreshTimestamp && !isAnimating) { 
                 const remainingMs = nextRefreshTimestamp - Date.now(); 
                 if (remainingMs <= 0) { 
-                    countdownEl.textContent = 'Refreshing...'; 
+                    countdownEl.textContent = 'Päivitetään...'; 
                 } else { 
                     const remainingSeconds = Math.round(remainingMs / 1000); 
                     const minutes = Math.floor(remainingSeconds / 60); 
@@ -562,7 +806,7 @@
                     countdownEl.textContent = `${minutes}:${String(seconds).padStart(2, '0')}`; 
                 } 
             } else if (isAnimating) {
-                countdownEl.textContent = 'Animation mode';
+                countdownEl.textContent = 'Animaatiotila';
             } else { 
                 countdownEl.textContent = '--'; 
             } 
@@ -585,6 +829,7 @@
                 await fetchLightningData(); 
                 updateLightning(); 
                 updateRadarLayer();
+                await updateTemperatureLayer(); // Update temperature layer
                 nextRefreshTimestamp = Date.now() + REFRESH_INTERVAL_MS; 
                 console.log('refreshAll completed successfully');
             } catch (error) {
@@ -595,13 +840,72 @@
         // --- 8. INITIALIZATION ---
         async function initialize() {
             console.log('Initializing application...');
+            
+            // --- START: Persistent Settings Management ---
+            const lightningToggle = document.getElementById('lightning-toggle');
+            const temperatureToggle = document.getElementById('temperature-toggle');
+            const opacitySlider = document.getElementById('opacity-slider');
+
+            // 1. Restore settings on page load
+            const savedShowLightning = localStorage.getItem('showLightning');
+            if (savedShowLightning !== null) {
+                lightningToggle.checked = savedShowLightning === 'true';
+            }
+
+            const savedShowTemperature = localStorage.getItem('showTemperature');
+            if (savedShowTemperature !== null) {
+                temperatureToggle.checked = savedShowTemperature === 'true';
+            }
+
+            const savedRadarOpacity = localStorage.getItem('radarOpacity');
+            if (savedRadarOpacity !== null) {
+                const opacityValue = parseFloat(savedRadarOpacity);
+                if (!isNaN(opacityValue)) {
+                    opacitySlider.value = opacityValue;
+                    fmiRadarLayer.setOpacity(opacityValue);
+                }
+            }
+            // --- END: Persistent Settings Management ---
+
+            // --- START: Save Map Position on Change ---
+            // 2. Save the map's position to localStorage whenever the user stops moving it.
+            function saveMapPosition() {
+                try {
+                    const position = {
+                        // --- FIX: Save the raw numbers, not strings from toFixed() ---
+                        lat: map.getCenter().lat,
+                        lng: map.getCenter().lng,
+                        zoom: map.getZoom()
+                    };
+                    localStorage.setItem('mapPosition', JSON.stringify(position));
+                } catch (e) {
+                    console.error('Could not save map position to localStorage:', e);
+                }
+            }
+            // The 'moveend' event fires after any panning or zooming.
+            map.on('moveend', saveMapPosition);
+            // --- END: Save Map Position on Change ---
+
             await fetchAvailableRadarTimes();
             await refreshAll();
             updateTimeDisplay();
             
-            // Setup event listeners
-            document.getElementById('lightning-toggle').addEventListener('change', updateLightning);
-            document.getElementById('opacity-slider').addEventListener('input', e => fmiRadarLayer.setOpacity(e.target.value));
+            // Setup event listeners and save settings on change
+            lightningToggle.addEventListener('change', () => {
+                localStorage.setItem('showLightning', lightningToggle.checked);
+                updateLightning();
+            });
+
+            temperatureToggle.addEventListener('change', () => {
+                localStorage.setItem('showTemperature', temperatureToggle.checked);
+                updateTemperatureLayer();
+            });
+
+            opacitySlider.addEventListener('input', e => {
+                const newOpacity = e.target.value;
+                fmiRadarLayer.setOpacity(newOpacity);
+                localStorage.setItem('radarOpacity', newOpacity);
+            });
             
             document.getElementById('history-slider').addEventListener('input', e => {
                 if (isAnimating) stopAnimation();
@@ -638,7 +942,7 @@
                 refreshBtn.addEventListener('click', async () => {
                     console.log('Manual refresh clicked');
                     refreshBtn.disabled = true;
-                    refreshBtn.textContent = 'Refreshing...';
+                    refreshBtn.textContent = 'Päivitetään...';
                     
                     // Stop animation if running
                     if (isAnimating) {
@@ -658,7 +962,7 @@
                     startAutoRefresh();
                     
                     refreshBtn.disabled = false;
-                    refreshBtn.innerHTML = '⟳ Manual Refresh';
+                    refreshBtn.innerHTML = '⟳ Päivitä manuaalisesti';
                     console.log('Manual refresh completed');
                 });
             }
@@ -671,10 +975,10 @@
                     controlsPanel.classList.toggle('hidden');
                     if (controlsPanel.classList.contains('hidden')) {
                         toggleBtn.innerHTML = '☰'; // Hamburger icon
-                        toggleBtn.title = 'Show Controls';
+                        toggleBtn.title = 'Näytä säädöt';
                     } else {
                         toggleBtn.innerHTML = '×'; // 'x' symbol
-                        toggleBtn.title = 'Hide Controls';
+                        toggleBtn.title = 'Piilota säädöt';
                     }
                 });
             }
