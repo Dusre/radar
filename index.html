@@ -150,6 +150,9 @@
         
         <label> <input type="checkbox" id="lightning-toggle"> Näytä salamat </label>
         <label> <input type="checkbox" id="temperature-toggle"> Näytä lämpötilat </label>
+        <label> <input type="checkbox" id="wind-toggle"> Näytä tuuli </label>
+        <label> <input type="checkbox" id="humidity-toggle"> Näytä kosteus </label>
+        <label> <input type="checkbox" id="pressure-toggle"> Näytä paine </label>
         
         <div class="slider-container">
             <div class="slider-label">Tutkan läpinäkyvyys</div>
@@ -185,6 +188,7 @@
         Uusin salama: <span id="data-age">--</span> |
         Näkyviä salamoita: <span id="lightning-count">0</span> |
         Lämpötila-asemia: <span id="temp-count">0</span> |
+        Tuulimittauksia: <span id="wind-count">0</span> |
         Seuraava päivitys: <span id="next-update-countdown">--</span>
     </div>
     <script>
@@ -205,6 +209,10 @@
         let preloadedImages = new Map(); // Cache for preloaded radar images
         let refreshInterval = null; // Store the refresh interval ID
         let temperatureStationCount = 0; // Track number of temperature stations
+        let windStationCount = 0; // Track number of wind observations
+        const windLayerGroup = L.layerGroup();
+        const humidityStations = L.layerGroup();
+        const pressureStations = L.layerGroup();
         
         const timeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
 
@@ -389,6 +397,20 @@
             return '#ff0000';                      // Red
         }
 
+        function getHumidityColor(rh) {
+            if (rh < 30) return '#ffcc00';  // dry - amber
+            if (rh < 60) return '#00ccff';  // moderate - cyan
+            if (rh < 80) return '#3399ff';  // humid - blue
+            return '#0044aa';               // very humid - dark blue
+        }
+
+        function getPressureColor(hpa) {
+            if (hpa < 990) return '#ff3333';   // low
+            if (hpa < 1005) return '#ff9933';  // below avg
+            if (hpa < 1020) return '#33cc33';  // normal-ish
+            return '#3399ff';                  // high
+        }
+
         async function updateTemperatureLayer() {
             const isVisible = document.getElementById('temperature-toggle').checked;
             
@@ -445,7 +467,7 @@
                 status.textContent = originalText;
                 status.className = 'status success';
                 document.getElementById('temp-count').textContent = temperatureStationCount;
-                console.log(`Loaded ${temperatureStationCount} temperature stations`);
+                console.log(`Loaded ${temperatureStationCount} temperature stations (grid-reduced)`);
                 
             } else {
                 if (map.hasLayer(temperatureStations)) {
@@ -455,6 +477,259 @@
                 document.getElementById('temp-count').textContent = '0';
                 console.log('Temperature layer removed from map');
             }
+        }
+
+        // --- 3b. WIND DATA MANAGEMENT ---
+        async function fetchWindParamData(paramName) {
+            try {
+                const endTime = new Date();
+                const startTime = new Date(endTime.getTime() - 30 * 60 * 1000); // Last 30 minutes
+                const url = `https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::weather::timevaluepair&parameters=${paramName}&starttime=${startTime.toISOString()}&endtime=${endTime.toISOString()}&bbox=19,59,32,71`;
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                if (xmlDoc.querySelector('parsererror')) {
+                    throw new Error('XML parsing error');
+                }
+                return parseLatestValueByLocation(xmlDoc);
+            } catch (error) {
+                console.error(`Error fetching wind param ${paramName}:`, error);
+                return [];
+            }
+        }
+
+        function parseLatestValueByLocation(xmlDoc) {
+            const locations = new Map();
+            xmlDoc.querySelectorAll('wfs\\:member, member').forEach(member => {
+                try {
+                    const posElement = member.querySelector('gml\\:pos, pos');
+                    if (!posElement) return;
+                    const coords = posElement.textContent.trim().split(' ');
+                    if (coords.length < 2) return;
+                    const lat = parseFloat(coords[0]);
+                    const lng = parseFloat(coords[1]);
+                    if (isNaN(lat) || isNaN(lng)) return;
+                    const locationKey = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
+
+                    let stationNameEl = member.querySelector('gml\\:name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"], name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"]');
+                    const stationName = stationNameEl ? stationNameEl.textContent.trim() : 'asema';
+
+                    const result = member.querySelector('om\\:result, result');
+                    if (!result) return;
+                    const measurements = result.querySelectorAll('wml2\\:MeasurementTVP, MeasurementTVP');
+                    let latest = null;
+                    measurements.forEach(m => {
+                        const timeEl = m.querySelector('wml2\\:time, time');
+                        const valueEl = m.querySelector('wml2\\:value, value');
+                        if (!timeEl || !valueEl) return;
+                        const valStr = valueEl.textContent.trim();
+                        if (valStr === '' || valStr === 'NaN') return;
+                        const value = parseFloat(valStr);
+                        if (isNaN(value)) return;
+                        const time = new Date(timeEl.textContent);
+                        if (!latest || time > latest.time) {
+                            latest = { time, value };
+                        }
+                    });
+                    if (!latest) return;
+                    const current = locations.get(locationKey);
+                    if (!current || latest.time > current.time) {
+                        locations.set(locationKey, { lat, lng, value: latest.value, time: latest.time, stationName });
+                    }
+                } catch (e) {
+                    console.warn('Error parsing wind observation:', e);
+                }
+            });
+            return Array.from(locations.values());
+        }
+
+        async function fetchWindData() {
+            const [speedData, dirData] = await Promise.all([
+                fetchWindParamData('windspeedms'),
+                fetchWindParamData('winddirection')
+            ]);
+
+            const byKey = new Map();
+            const keyOf = (lat, lng) => `${lat.toFixed(4)}_${lng.toFixed(4)}`;
+
+            speedData.forEach(s => {
+                byKey.set(keyOf(s.lat, s.lng), { lat: s.lat, lng: s.lng, speed: s.value, time: s.time, stationName: s.stationName });
+            });
+            dirData.forEach(d => {
+                const k = keyOf(d.lat, d.lng);
+                const existing = byKey.get(k) || { lat: d.lat, lng: d.lng, stationName: d.stationName };
+                existing.direction = d.value;
+                if (!existing.time || d.time > existing.time) existing.time = d.time;
+                byKey.set(k, existing);
+            });
+
+
+            // Keep only entries that have both speed and direction
+            return Array.from(byKey.values()).filter(e => typeof e.speed === 'number' && typeof e.direction === 'number');
+        }
+
+        function degreesToCardinal(deg) {
+            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            const ix = Math.round(((deg % 360) / 45)) % 8;
+            return dirs[ix];
+        }
+
+        async function updateWindLayer() {
+            const isVisible = document.getElementById('wind-toggle').checked;
+
+            if (!isVisible) {
+                if (map.hasLayer(windLayerGroup)) map.removeLayer(windLayerGroup);
+                windLayerGroup.clearLayers();
+                windStationCount = 0;
+                const wc = document.getElementById('wind-count');
+                if (wc) wc.textContent = '0';
+                return;
+            }
+
+            if (!map.hasLayer(windLayerGroup)) map.addLayer(windLayerGroup);
+
+            const status = document.getElementById('status');
+            const originalText = status.textContent;
+            status.textContent = 'Ladataan tuulta...';
+            status.className = 'status loading';
+
+            const data = await fetchWindData();
+            windLayerGroup.clearLayers();
+            windStationCount = 0;
+
+            data.forEach(obs => {
+                const speed = Math.max(0, Math.min(60, obs.speed));
+                const direction = ((obs.direction % 360) + 360) % 360; // normalize
+                const length = 12 + Math.min(speed, 20) * 2; // px
+                const svgWidth = 14;
+                const svgHeight = length + 10;
+
+                const arrowSVG = `
+                    <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#000" flood-opacity="0.6"/>
+                            </filter>
+                        </defs>
+                        <g filter="url(#shadow)" stroke="#00ff00" stroke-width="2" stroke-linecap="round" fill="none">
+                            <line x1="${svgWidth/2}" y1="${svgHeight-2}" x2="${svgWidth/2}" y2="${svgHeight-length}" />
+                            <path d="M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 - 4} ${svgHeight-length + 8} M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 + 4} ${svgHeight-length + 8}" />
+                        </g>
+                    </svg>`;
+
+                const marker = L.marker([obs.lat, obs.lng], {
+                    icon: L.divIcon({
+                        className: 'wind-icon',
+                        html: `<div style="display:flex; flex-direction:column; align-items:center; transform: rotate(${direction}deg);">${arrowSVG}</div>
+                               <div style="margin-top:2px; padding:1px 3px; border-radius:3px; background:#111; color:#fff; border:1px solid #333; font-size:10px; line-height:1;">${speed.toFixed(1)} m/s</div>`,
+                        iconSize: [svgWidth + 6, svgHeight + 16],
+                        iconAnchor: [Math.round((svgWidth + 6)/2), svgHeight - 2]
+                    })
+                });
+
+                const ageMinutes = Math.round((Date.now() - new Date(obs.time).getTime()) / 60000);
+                const popupContent = `
+                    <strong>Tuuli</strong><br>
+                    Asema: ${obs.stationName}<br>
+                    Nopeus: <strong>${speed.toFixed(1)} m/s</strong><br>
+                    Suunta: ${Math.round(direction)}° (${degreesToCardinal(direction)})<br>
+                    Aika: ${new Date(obs.time).toLocaleTimeString('sv-SE', timeFormatOptions)}<br>
+                    Ikä: ${ageMinutes} minuuttia sitten`;
+                marker.bindPopup(popupContent, { className: 'dark-popup' });
+                windLayerGroup.addLayer(marker);
+                windStationCount++;
+            });
+
+            const wc = document.getElementById('wind-count');
+            if (wc) wc.textContent = windStationCount.toString();
+            status.textContent = originalText;
+            status.className = 'status success';
+        }
+
+        // --- 3c. HUMIDITY & PRESSURE LAYERS ---
+        async function fetchHumidityData() {
+            return fetchWindParamData('humidity');
+        }
+
+        async function fetchPressureData() {
+            return fetchWindParamData('pressure');
+        }
+
+        async function updateHumidityLayer() {
+            const toggle = document.getElementById('humidity-toggle');
+            if (!toggle || !toggle.checked) {
+                if (map.hasLayer(humidityStations)) map.removeLayer(humidityStations);
+                humidityStations.clearLayers();
+                return;
+            }
+            if (!map.hasLayer(humidityStations)) map.addLayer(humidityStations);
+            const status = document.getElementById('status');
+            const original = status.textContent;
+            status.textContent = 'Ladataan kosteutta...';
+            status.className = 'status loading';
+            const data = await fetchHumidityData();
+            humidityStations.clearLayers();
+            data.forEach(obs => {
+                const color = getHumidityColor(obs.value);
+                const label = L.marker([obs.lat, obs.lng], {
+                    icon: L.divIcon({
+                        className: 'humidity-label',
+                        html: `<div style="background:${color}; padding:2px 6px; border-radius:3px; font-size:11px; font-weight:bold; color:#000; border:1px solid #333; box-shadow:0 1px 3px rgba(0,0,0,0.3);">${obs.value.toFixed(0)}%</div>`,
+                        iconSize: [34, 16],
+                        iconAnchor: [17, 8]
+                    })
+                });
+                const age = Math.round((Date.now() - new Date(obs.time).getTime())/60000);
+                label.bindPopup(``+
+                    `<strong>Ilmankosteus</strong><br>`+
+                    `Asema: ${obs.stationName}<br>`+
+                    `RH: <strong>${obs.value.toFixed(0)}%</strong><br>`+
+                    `Aika: ${new Date(obs.time).toLocaleTimeString('sv-SE', timeFormatOptions)}<br>`+
+                    `Ikä: ${age} minuuttia sitten`, { className: 'dark-popup' });
+                humidityStations.addLayer(label);
+            });
+            status.textContent = original;
+            status.className = 'status success';
+        }
+
+        async function updatePressureLayer() {
+            const toggle = document.getElementById('pressure-toggle');
+            if (!toggle || !toggle.checked) {
+                if (map.hasLayer(pressureStations)) map.removeLayer(pressureStations);
+                pressureStations.clearLayers();
+                return;
+            }
+            if (!map.hasLayer(pressureStations)) map.addLayer(pressureStations);
+            const status = document.getElementById('status');
+            const original = status.textContent;
+            status.textContent = 'Ladataan painetta...';
+            status.className = 'status loading';
+            const data = await fetchPressureData();
+            pressureStations.clearLayers();
+            data.forEach(obs => {
+                const color = getPressureColor(obs.value);
+                const label = L.marker([obs.lat, obs.lng], {
+                    icon: L.divIcon({
+                        className: 'pressure-label',
+                        html: `<div style="background:${color}; padding:2px 6px; border-radius:3px; font-size:11px; font-weight:bold; color:#000; border:1px solid #333; box-shadow:0 1px 3px rgba(0,0,0,0.3);">${obs.value.toFixed(0)} hPa</div>`,
+                        iconSize: [48, 16],
+                        iconAnchor: [24, 8]
+                    })
+                });
+                const age = Math.round((Date.now() - new Date(obs.time).getTime())/60000);
+                label.bindPopup(``+
+                    `<strong>Paine</strong><br>`+
+                    `Asema: ${obs.stationName}<br>`+
+                    `Paine: <strong>${obs.value.toFixed(1)} hPa</strong><br>`+
+                    `Aika: ${new Date(obs.time).toLocaleTimeString('sv-SE', timeFormatOptions)}<br>`+
+                    `Ikä: ${age} minuuttia sitten`, { className: 'dark-popup' });
+                pressureStations.addLayer(label);
+            });
+            status.textContent = original;
+            status.className = 'status success';
         }
 
         // --- 4. RADAR HISTORY FUNCTIONS ---
@@ -769,12 +1044,16 @@
         
         function updateLightning() { 
             lightningLayer.clearLayers(); 
-            if(!document.getElementById("lightning-toggle").checked){
+            const toggle = document.getElementById("lightning-toggle");
+            if(!toggle || !toggle.checked){
                 document.getElementById("lightning-count").textContent="0";
-                return
+                return;
             }
-            const t=Date.now(),e=lightningData.features.filter(e=>(t-e.properties.timestamp)/6e4<MAX_STRIKE_AGE_MINUTES);
-            lightningLayer.addData({type:"FeatureCollection",features:e}),document.getElementById("lightning-count").textContent=e.length 
+            const nowTs = Date.now();
+            let feats = lightningData.features.filter(f => (nowTs - f.properties.timestamp)/60000 < MAX_STRIKE_AGE_MINUTES);
+            // No decimation: show all within age window
+            lightningLayer.addData({type:"FeatureCollection",features:feats});
+            document.getElementById("lightning-count").textContent = feats.length.toString();
         }
         
         function updateRadarAgeDisplay() { 
@@ -830,6 +1109,9 @@
                 updateLightning(); 
                 updateRadarLayer();
                 await updateTemperatureLayer(); // Update temperature layer
+                await updateWindLayer(); // Update wind layer
+                await updateHumidityLayer();
+                await updatePressureLayer();
                 nextRefreshTimestamp = Date.now() + REFRESH_INTERVAL_MS; 
                 console.log('refreshAll completed successfully');
             } catch (error) {
@@ -844,6 +1126,9 @@
             // --- START: Persistent Settings Management ---
             const lightningToggle = document.getElementById('lightning-toggle');
             const temperatureToggle = document.getElementById('temperature-toggle');
+            const windToggle = document.getElementById('wind-toggle');
+            const humidityToggle = document.getElementById('humidity-toggle');
+            const pressureToggle = document.getElementById('pressure-toggle');
             const opacitySlider = document.getElementById('opacity-slider');
 
             // 1. Restore settings on page load
@@ -857,6 +1142,21 @@
                 temperatureToggle.checked = savedShowTemperature === 'true';
             }
 
+            const savedShowWind = localStorage.getItem('showWind');
+            if (savedShowWind !== null) {
+                windToggle.checked = savedShowWind === 'true';
+            }
+
+            const savedShowHumidity = localStorage.getItem('showHumidity');
+            if (savedShowHumidity !== null) {
+                humidityToggle.checked = savedShowHumidity === 'true';
+            }
+
+            const savedShowPressure = localStorage.getItem('showPressure');
+            if (savedShowPressure !== null) {
+                pressureToggle.checked = savedShowPressure === 'true';
+            }
+
             const savedRadarOpacity = localStorage.getItem('radarOpacity');
             if (savedRadarOpacity !== null) {
                 const opacityValue = parseFloat(savedRadarOpacity);
@@ -864,6 +1164,33 @@
                     opacitySlider.value = opacityValue;
                     fmiRadarLayer.setOpacity(opacityValue);
                 }
+            }
+            // Helper: exclusive selection management among overlays
+            const toggleConfigs = [
+                { el: lightningToggle, key: 'showLightning', update: updateLightning },
+                { el: temperatureToggle, key: 'showTemperature', update: updateTemperatureLayer },
+                { el: windToggle, key: 'showWind', update: updateWindLayer },
+                { el: humidityToggle, key: 'showHumidity', update: updateHumidityLayer },
+                { el: pressureToggle, key: 'showPressure', update: updatePressureLayer },
+            ];
+
+            function setCheckedAndPersist(cfg, checked) {
+                cfg.el.checked = checked;
+                localStorage.setItem(cfg.key, checked);
+                cfg.update();
+            }
+
+            function setExclusive(activeCfg) {
+                toggleConfigs.forEach(cfg => {
+                    setCheckedAndPersist(cfg, cfg === activeCfg);
+                });
+            }
+
+            // Normalize restored state: keep at most one checked
+            const checkedCfgs = toggleConfigs.filter(cfg => cfg.el.checked);
+            if (checkedCfgs.length > 1) {
+                const keep = checkedCfgs[0];
+                toggleConfigs.forEach(cfg => setCheckedAndPersist(cfg, cfg === keep));
             }
             // --- END: Persistent Settings Management ---
 
@@ -888,17 +1215,38 @@
 
             await fetchAvailableRadarTimes();
             await refreshAll();
+            // ensure optional layers render on first load
+            await updateHumidityLayer();
+            await updatePressureLayer();
+            // Ensure optional layers that were toggled on are drawn at first load
+            await updateTemperatureLayer();
+            await updateWindLayer();
             updateTimeDisplay();
             
-            // Setup event listeners and save settings on change
+            // Setup event listeners with exclusive selection behavior
             lightningToggle.addEventListener('change', () => {
-                localStorage.setItem('showLightning', lightningToggle.checked);
-                updateLightning();
+                if (lightningToggle.checked) setExclusive(toggleConfigs[0]);
+                else { localStorage.setItem('showLightning', 'false'); updateLightning(); }
             });
 
             temperatureToggle.addEventListener('change', () => {
-                localStorage.setItem('showTemperature', temperatureToggle.checked);
-                updateTemperatureLayer();
+                if (temperatureToggle.checked) setExclusive(toggleConfigs[1]);
+                else { localStorage.setItem('showTemperature', 'false'); updateTemperatureLayer(); }
+            });
+
+            windToggle.addEventListener('change', () => {
+                if (windToggle.checked) setExclusive(toggleConfigs[2]);
+                else { localStorage.setItem('showWind', 'false'); updateWindLayer(); }
+            });
+
+            humidityToggle.addEventListener('change', () => {
+                if (humidityToggle.checked) setExclusive(toggleConfigs[3]);
+                else { localStorage.setItem('showHumidity', 'false'); updateHumidityLayer(); }
+            });
+
+            pressureToggle.addEventListener('change', () => {
+                if (pressureToggle.checked) setExclusive(toggleConfigs[4]);
+                else { localStorage.setItem('showPressure', 'false'); updatePressureLayer(); }
             });
 
             opacitySlider.addEventListener('input', e => {
