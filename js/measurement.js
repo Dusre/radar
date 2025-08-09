@@ -266,3 +266,28 @@ export function initializeMeasurement() {
         toggleMeasurement();
     });
     
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function(e) {
+            console.log('Clear button clicked');
+            e.preventDefault();
+            e.stopPropagation();
+            clearMeasurement();
+        });
+        
+        clearBtn.addEventListener('touchend', function(e) {
+            console.log('Clear button touched');
+            e.preventDefault();
+            e.stopPropagation();
+            clearMeasurement();
+        });
+    }
+    
+    // Keyboard shortcut (Escape to exit measurement mode)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && measurementState.isActive) {
+            toggleMeasurement();
+        }
+    });
+    
+    console.log('Measurement tool initialized');
+}
