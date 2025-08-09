@@ -82,7 +82,10 @@ function updateMeasurement() {
         const formattedDistance = formatDistance(distance);
         
         // Update result display
-        document.getElementById('measure-result').textContent = `Etäisyys: ${formattedDistance}`;
+        const resultEl = document.getElementById('measure-result');
+        if (resultEl) {
+            resultEl.textContent = `Etäisyys: ${formattedDistance}`;
+        }
         
         // Create or update line
         if (measurementState.line) {
@@ -123,17 +126,19 @@ function addMeasurementPoint(latlng) {
     
     measurementState.points.push(latlng);
     
-    // Add marker for this point (without label)
+    // Add marker for this point
     const marker = createMeasurementMarker(latlng);
     marker.addTo(map);
     measurementState.markers.push(marker);
     
     // Update instructions
     const instructions = document.querySelector('.measure-instructions');
-    if (measurementState.points.length === 1) {
-        instructions.textContent = 'Klikkaa toinen piste';
-    } else {
-        instructions.textContent = 'Mittaus valmis';
+    if (instructions) {
+        if (measurementState.points.length === 1) {
+            instructions.textContent = 'Klikkaa toinen piste';
+        } else {
+            instructions.textContent = 'Mittaus valmis';
+        }
     }
     
     updateMeasurement();
@@ -144,54 +149,34 @@ function handleMapClick(e) {
     addMeasurementPoint(e.latlng);
 }
 
-function handleTouchStart(e) {
-    if (!measurementState.isActive) return;
-    
-    // Clear any existing timeout
-    if (measurementState.touchTimeout) {
-        clearTimeout(measurementState.touchTimeout);
-    }
-    
-    // Set a timeout to distinguish between tap and drag
-    measurementState.touchTimeout = setTimeout(() => {
-        if (e.touches && e.touches.length === 1) {
-            const touch = e.touches[0];
-            const latlng = map.containerPointToLatLng([touch.clientX, touch.clientY]);
-            addMeasurementPoint(latlng);
-        }
-    }, 200); // 200ms delay to distinguish tap from drag
-}
-
-function handleTouchMove(e) {
-    // If user moves finger, cancel the measurement
-    if (measurementState.touchTimeout) {
-        clearTimeout(measurementState.touchTimeout);
-        measurementState.touchTimeout = null;
-    }
-}
-
-function handleTouchEnd(e) {
-    // Clear timeout on touch end
-    if (measurementState.touchTimeout) {
-        clearTimeout(measurementState.touchTimeout);
-        measurementState.touchTimeout = null;
-    }
-}
-
 export function clearMeasurement() {
     // Remove all markers
-    measurementState.markers.forEach(marker => map.removeLayer(marker));
+    measurementState.markers.forEach(marker => {
+        try {
+            map.removeLayer(marker);
+        } catch (e) {
+            console.warn('Could not remove marker:', e);
+        }
+    });
     measurementState.markers = [];
     
     // Remove line
     if (measurementState.line) {
-        map.removeLayer(measurementState.line);
+        try {
+            map.removeLayer(measurementState.line);
+        } catch (e) {
+            console.warn('Could not remove line:', e);
+        }
         measurementState.line = null;
     }
     
     // Remove distance label
     if (measurementState.distanceLabel) {
-        map.removeLayer(measurementState.distanceLabel);
+        try {
+            map.removeLayer(measurementState.distanceLabel);
+        } catch (e) {
+            console.warn('Could not remove label:', e);
+        }
         measurementState.distanceLabel = null;
     }
     
@@ -199,82 +184,85 @@ export function clearMeasurement() {
     measurementState.points = [];
     
     // Update UI
-    document.getElementById('measure-result').textContent = '';
-    document.querySelector('.measure-instructions').textContent = 'Klikkaa kahta pistettä kartalla';
+    const resultEl = document.getElementById('measure-result');
+    if (resultEl) {
+        resultEl.textContent = '';
+    }
+    
+    const instructions = document.querySelector('.measure-instructions');
+    if (instructions) {
+        instructions.textContent = 'Klikkaa kahta pistettä kartalla';
+    }
 }
 
 export function toggleMeasurement() {
+    console.log('Toggle measurement called, current state:', measurementState.isActive);
+    
     measurementState.isActive = !measurementState.isActive;
     
     const button = document.getElementById('measure-btn');
     const info = document.getElementById('measure-info');
     
+    if (!button || !info) {
+        console.error('Measurement UI elements not found');
+        return;
+    }
+    
     if (measurementState.isActive) {
+        console.log('Activating measurement mode');
         button.classList.add('active');
         info.classList.remove('hidden');
         map.getContainer().style.cursor = 'crosshair';
         
-        // Add both click and touch handlers
+        // Add click handler
         map.on('click', handleMapClick);
         
-        // For mobile support
-        const mapContainer = map.getContainer();
-        mapContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
-        mapContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
-        mapContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
-        
-        // Temporarily disable double-tap zoom on mobile
-        map.doubleClickZoom.disable();
-        
         // Show mobile-friendly instructions
-        const isMobile = 'ontouchstart' in window;
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         const instructions = document.querySelector('.measure-instructions');
-        instructions.textContent = isMobile ? 'Kosketa kahta pistettä kartalla' : 'Klikkaa kahta pistettä kartalla';
+        if (instructions) {
+            instructions.textContent = isMobile ? 'Kosketa kahta pistettä kartalla' : 'Klikkaa kahta pistettä kartalla';
+        }
         
     } else {
+        console.log('Deactivating measurement mode');
         button.classList.remove('active');
         info.classList.add('hidden');
         map.getContainer().style.cursor = '';
         
-        // Remove handlers
+        // Remove click handler
         map.off('click', handleMapClick);
-        
-        const mapContainer = map.getContainer();
-        mapContainer.removeEventListener('touchstart', handleTouchStart);
-        mapContainer.removeEventListener('touchmove', handleTouchMove);
-        mapContainer.removeEventListener('touchend', handleTouchEnd);
-        
-        // Re-enable double-tap zoom
-        map.doubleClickZoom.enable();
         
         // Clear any existing measurement
         clearMeasurement();
-        
-        // Clear any pending touch timeout
-        if (measurementState.touchTimeout) {
-            clearTimeout(measurementState.touchTimeout);
-            measurementState.touchTimeout = null;
-        }
     }
 }
 
 export function initializeMeasurement() {
-    // Measurement tool button
-    document.getElementById('measure-btn').addEventListener('click', (e) => {
+    console.log('Initializing measurement tool');
+    
+    // Wait for DOM to be ready
+    const measureBtn = document.getElementById('measure-btn');
+    const clearBtn = document.getElementById('clear-measure-btn');
+    
+    if (!measureBtn) {
+        console.error('Measure button not found');
+        return;
+    }
+    
+    // Use both click and touchend for better mobile support
+    measureBtn.addEventListener('click', function(e) {
+        console.log('Measure button clicked');
         e.preventDefault();
+        e.stopPropagation();
         toggleMeasurement();
     });
     
-    // Clear measurement button
-    document.getElementById('clear-measure-btn').addEventListener('click', (e) => {
+    // Also add touch support for mobile
+    measureBtn.addEventListener('touchend', function(e) {
+        console.log('Measure button touched');
         e.preventDefault();
-        clearMeasurement();
+        e.stopPropagation();
+        toggleMeasurement();
     });
     
-    // Keyboard shortcut (Escape to exit measurement mode)
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && measurementState.isActive) {
-            toggleMeasurement();
-        }
-    });
-}
