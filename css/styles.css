@@ -568,3 +568,44 @@ input:focus-visible {
     justify-content: center;
     align-items: center;
 }
+
+/* Mobile-specific improvements for measurement tool */
+@media (max-width: 768px) {
+    .measurement-marker {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .measurement-marker-icon {
+        width: 16px !important;
+        height: 16px !important;
+    }
+    
+    .measurement-label {
+        font-size: 14px;
+        padding: 6px 10px;
+    }
+    
+    .measure-info {
+        font-size: 0.9em;
+    }
+    
+    /* Make buttons more touch-friendly */
+    .button-tool {
+        padding: 10px 12px;
+        font-size: 0.9em;
+    }
+    
+    .button-small {
+        padding: 6px 10px;
+    }
+}
+
+/* Prevent text selection when measuring */
+.measurement-active {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}

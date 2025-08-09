@@ -5,7 +5,8 @@ let measurementState = {
     points: [],
     markers: [],
     line: null,
-    distanceLabel: null
+    distanceLabel: null,
+    touchTimeout: null
 };
 
 let map = null;
@@ -103,48 +104,27 @@ function updateMeasurement() {
             map.removeLayer(measurementState.distanceLabel);
         }
         
-        // Create a temporary element to measure text width
-        const tempDiv = document.createElement('div');
-        tempDiv.className = 'measurement-label';
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.visibility = 'hidden';
-        tempDiv.style.height = 'auto';
-        tempDiv.style.width = 'auto';
-        tempDiv.style.whiteSpace = 'nowrap';
-        tempDiv.textContent = formattedDistance;
-        document.body.appendChild(tempDiv);
-        
-        // Get the actual width and height
-        const labelWidth = tempDiv.offsetWidth;
-        const labelHeight = tempDiv.offsetHeight;
-        
-        // Remove temporary element
-        document.body.removeChild(tempDiv);
-        
-        // Create the label with dynamic size
         measurementState.distanceLabel = L.marker(midpoint, {
             icon: L.divIcon({
                 className: 'measurement-distance-label-icon',
                 html: `<div class="measurement-label">${formattedDistance}</div>`,
-                iconSize: [labelWidth + 4, labelHeight], // Add a bit of padding
-                iconAnchor: [(labelWidth + 4) / 2, labelHeight / 2] // Center the label
+                iconSize: null,
+                iconAnchor: [0, 0]
             }),
             interactive: false
         }).addTo(map);
     }
 }
 
-function handleMapClick(e) {
-    if (!measurementState.isActive) return;
-    
+function addMeasurementPoint(latlng) {
     if (measurementState.points.length >= 2) {
         clearMeasurement();
     }
     
-    measurementState.points.push(e.latlng);
+    measurementState.points.push(latlng);
     
     // Add marker for this point (without label)
-    const marker = createMeasurementMarker(e.latlng);
+    const marker = createMeasurementMarker(latlng);
     marker.addTo(map);
     measurementState.markers.push(marker);
     
@@ -157,6 +137,45 @@ function handleMapClick(e) {
     }
     
     updateMeasurement();
+}
+
+function handleMapClick(e) {
+    if (!measurementState.isActive) return;
+    addMeasurementPoint(e.latlng);
+}
+
+function handleTouchStart(e) {
+    if (!measurementState.isActive) return;
+    
+    // Clear any existing timeout
+    if (measurementState.touchTimeout) {
+        clearTimeout(measurementState.touchTimeout);
+    }
+    
+    // Set a timeout to distinguish between tap and drag
+    measurementState.touchTimeout = setTimeout(() => {
+        if (e.touches && e.touches.length === 1) {
+            const touch = e.touches[0];
+            const latlng = map.containerPointToLatLng([touch.clientX, touch.clientY]);
+            addMeasurementPoint(latlng);
+        }
+    }, 200); // 200ms delay to distinguish tap from drag
+}
+
+function handleTouchMove(e) {
+    // If user moves finger, cancel the measurement
+    if (measurementState.touchTimeout) {
+        clearTimeout(measurementState.touchTimeout);
+        measurementState.touchTimeout = null;
+    }
+}
+
+function handleTouchEnd(e) {
+    // Clear timeout on touch end
+    if (measurementState.touchTimeout) {
+        clearTimeout(measurementState.touchTimeout);
+        measurementState.touchTimeout = null;
+    }
 }
 
 export function clearMeasurement() {
@@ -195,24 +214,47 @@ export function toggleMeasurement() {
         info.classList.remove('hidden');
         map.getContainer().style.cursor = 'crosshair';
         
-        // Add click handler
+        // Add both click and touch handlers
         map.on('click', handleMapClick);
         
-        // Disable map dragging for better measurement experience
-        // map.dragging.disable();
+        // For mobile support
+        const mapContainer = map.getContainer();
+        mapContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+        mapContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+        mapContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
+        
+        // Temporarily disable double-tap zoom on mobile
+        map.doubleClickZoom.disable();
+        
+        // Show mobile-friendly instructions
+        const isMobile = 'ontouchstart' in window;
+        const instructions = document.querySelector('.measure-instructions');
+        instructions.textContent = isMobile ? 'Kosketa kahta pistettä kartalla' : 'Klikkaa kahta pistettä kartalla';
+        
     } else {
         button.classList.remove('active');
         info.classList.add('hidden');
         map.getContainer().style.cursor = '';
         
-        // Remove click handler
+        // Remove handlers
         map.off('click', handleMapClick);
         
-        // Re-enable map dragging
-        // map.dragging.enable();
+        const mapContainer = map.getContainer();
+        mapContainer.removeEventListener('touchstart', handleTouchStart);
+        mapContainer.removeEventListener('touchmove', handleTouchMove);
+        mapContainer.removeEventListener('touchend', handleTouchEnd);
+        
+        // Re-enable double-tap zoom
+        map.doubleClickZoom.enable();
         
         // Clear any existing measurement
         clearMeasurement();
+        
+        // Clear any pending touch timeout
+        if (measurementState.touchTimeout) {
+            clearTimeout(measurementState.touchTimeout);
+            measurementState.touchTimeout = null;
+        }
     }
 }
 
