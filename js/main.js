@@ -24,6 +24,10 @@ import {
     updateTimeDisplay 
 } from './ui-updates.js';
 import { fetchLightningData, fetchAvailableRadarTimes } from './data-fetchers.js';
+import { 
+    setMap as setMeasurementMap,
+    initializeMeasurement 
+} from './measurement.js';
 
 // Check that required libraries are loaded
 if (typeof L === 'undefined') {
@@ -245,12 +249,16 @@ async function initialize() {
     const map = initializeMap();
     setLayersMap(map);
     setAnimationsMap(map);
+	setMeasurementMap(map);
     
     // Load saved settings
     loadSettings();
     
     // Setup event listeners
     setupEventListeners();
+	
+	// Initialize measurement tool
+	initializeMeasurement();
     
     // Fetch initial data
     await fetchAvailableRadarTimes();
