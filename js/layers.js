@@ -1,6 +1,6 @@
 import { state, layers } from './state.js';
 import { CONFIG } from './config.js';
-import { formatTime, getColorForTemperature, getColorForHumidity, getColorForPressure, getCloudIcon, degreesToCardinal } from './utils.js';
+import { formatTime, getColorForTemperature, getColorForHumidity, getColorForPressure, getCloudIcon, degreesToCardinal, getTemperatureExtreme, getPressureBackground } from './utils.js';
 import { fetchWeatherParameter, fetchWindData } from './data-fetchers.js';
 
 let map = null;
@@ -62,24 +62,27 @@ export async function updateTemperatureLayer() {
         if (station.value < -50 || station.value > 50) return;
         
         const bgColor = getColorForTemperature(station.value);
+        const extreme = getTemperatureExtreme(station.value);
         
         const label = L.marker([station.lat, station.lng], {
             icon: L.divIcon({
-                className: 'temp-label',
-                html: `<div style="background: ${bgColor}; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; color: #000; border: 1px solid #333; box-shadow: 0 1px 3px rgba(0,0,0,0.3); text-shadow: 0 0 2px rgba(255,255,255,0.8);">${station.value.toFixed(0)}°</div>`,
-                iconSize: [30, 16],
-                iconAnchor: [15, 8]
+                className: 'temp-label' + (extreme ? ` temp-label[data-extreme="${extreme}"]` : ''),
+                html: `<div style="background: ${bgColor};">${station.value.toFixed(0)}°C</div>`,
+                iconSize: null, // Let CSS handle sizing
+                iconAnchor: [0, 0] // Will be adjusted by CSS transform
             })
         });
         
         const ageMinutes = Math.round((Date.now() - station.time.getTime()) / 60000);
         const popupContent = `
-            <strong>Lämpötila-asema</strong><br>
-            Nimi: ${station.stationName}<br>
-            Lämpötila: <strong>${station.value.toFixed(1)}°C</strong><br>
-            Aika: ${formatTime(station.time)}<br>
-            Ikä: ${ageMinutes} minuuttia sitten<br>
-            Sijainti: ${station.lat.toFixed(4)}, ${station.lng.toFixed(4)}
+            <strong>🌡️ Lämpötila-asema</strong><br>
+            <div style="margin-top: 8px;">
+                📍 <strong>${station.stationName}</strong><br>
+                🌡️ Lämpötila: <strong style="color: #4db8ff;">${station.value.toFixed(1)}°C</strong><br>
+                ⏰ Aika: ${formatTime(station.time)}<br>
+                ⏱️ Ikä: ${ageMinutes} minuuttia sitten<br>
+                📌 Sijainti: ${station.lat.toFixed(4)}, ${station.lng.toFixed(4)}
+            </div>
         `;
         
         label.bindPopup(popupContent, { className: 'dark-popup' });
@@ -138,15 +141,16 @@ export async function updateWindLayer() {
                 </g>
             </svg>`;
         
-        const marker = L.marker([obs.lat, obs.lng], {
-            icon: L.divIcon({
-                className: 'wind-icon',
-                html: `<div style="display:flex; flex-direction:column; align-items:center; transform: rotate(${direction}deg);">${arrowSVG}</div>
-                       <div style="margin-top:2px; padding:1px 3px; border-radius:3px; background:#111; color:#fff; border:1px solid #333; font-size:10px; line-height:1;">${speed.toFixed(1)} m/s</div>`,
-                iconSize: [svgWidth + 6, svgHeight + 16],
-                iconAnchor: [Math.round((svgWidth + 6)/2), svgHeight - 2]
-            })
-        });
+        // In the wind layer creation, update the icon creation:
+const marker = L.marker([obs.lat, obs.lng], {
+    icon: L.divIcon({
+        className: 'wind-icon',
+        html: `<div style="transform: rotate(${direction}deg);">${arrowSVG}</div>
+               <div>${speed.toFixed(1)} m/s</div>`,
+        iconSize: null, // Let CSS handle sizing
+        iconAnchor: [0, 0] // Centered by default
+    })
+});
         
         const ageMinutes = Math.round((Date.now() - new Date(obs.time).getTime()) / 60000);
         const popupContent = `
@@ -202,19 +206,19 @@ export async function updateCloudLayer() {
         const cloudInfo = getCloudIcon(coverage);
         const percentage = Math.round((coverage / 8) * 100);
         
-        const marker = L.marker([station.lat, station.lng], {
-            icon: L.divIcon({
-                className: 'cloud-label',
-                html: `
-                    <div class="cloud-icon-container">
-                        <div class="cloud-icon" style="color: ${cloudInfo.color};">${cloudInfo.icon}</div>
-                        <div class="cloud-percentage">${percentage}%</div>
-                    </div>
-                `,
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            })
-        });
+const marker = L.marker([station.lat, station.lng], {
+    icon: L.divIcon({
+        className: 'cloud-label',
+        html: `
+            <div class="cloud-icon-container">
+                <div class="cloud-icon" style="color: ${cloudInfo.color};">${cloudInfo.icon}</div>
+                <div class="cloud-percentage">${percentage}%</div>
+            </div>
+        `,
+        iconSize: null, // Let CSS handle sizing
+        iconAnchor: [0, 0] // Will be centered by CSS
+    })
+});
         
         const ageMinutes = Math.round((Date.now() - station.time.getTime()) / 60000);
         const popupContent = `
@@ -259,29 +263,31 @@ export async function updateHumidityLayer() {
     const data = await fetchWeatherParameter('humidity');
     layers.humidity.clearLayers();
     
-    data.forEach(obs => {
-        const color = getColorForHumidity(obs.value);
-        const label = L.marker([obs.lat, obs.lng], {
-            icon: L.divIcon({
-                className: 'humidity-label',
-                html: `<div style="background:${color}; padding:2px 6px; border-radius:3px; font-size:11px; font-weight:bold; color:#000; border:1px solid #333; box-shadow:0 1px 3px rgba(0,0,0,0.3);">${obs.value.toFixed(0)}%</div>`,
-                iconSize: [34, 16],
-                iconAnchor: [17, 8]
-            })
-        });
-        
-        const age = Math.round((Date.now() - new Date(obs.time).getTime())/60000);
-        const popupContent = `
-            <strong>Ilmankosteus</strong><br>
-            Asema: ${obs.stationName}<br>
-            RH: <strong>${obs.value.toFixed(0)}%</strong><br>
-            Aika: ${formatTime(new Date(obs.time))}<br>
-            Ikä: ${age} minuuttia sitten
-        `;
-        
-        label.bindPopup(popupContent, { className: 'dark-popup' });
-        layers.humidity.addLayer(label);
+data.forEach(obs => {
+    const color = getColorForHumidity(obs.value);
+    const label = L.marker([obs.lat, obs.lng], {
+        icon: L.divIcon({
+            className: 'humidity-label',
+            html: `<div style="background: ${color};">${obs.value.toFixed(0)}%</div>`,
+            iconSize: null,
+            iconAnchor: [0, 0]
+        })
     });
+    
+    const age = Math.round((Date.now() - new Date(obs.time).getTime())/60000);
+    const popupContent = `
+        <strong>💧 Ilmankosteus</strong><br>
+        <div style="margin-top: 8px;">
+            📍 <strong>${obs.stationName}</strong><br>
+            💧 RH: <strong style="color: #4db8ff;">${obs.value.toFixed(0)}%</strong><br>
+            ⏰ Aika: ${formatTime(new Date(obs.time))}<br>
+            ⏱️ Ikä: ${age} minuuttia sitten
+        </div>
+    `;
+    
+    label.bindPopup(popupContent, { className: 'dark-popup' });
+    layers.humidity.addLayer(label);
+});
     
     status.textContent = original;
     status.className = 'status success';
@@ -309,29 +315,33 @@ export async function updatePressureLayer() {
     const data = await fetchWeatherParameter('pressure');
     layers.pressure.clearLayers();
     
-    data.forEach(obs => {
-        const color = getColorForPressure(obs.value);
-        const label = L.marker([obs.lat, obs.lng], {
-            icon: L.divIcon({
-                className: 'pressure-label',
-                html: `<div style="background:${color}; padding:2px 6px; border-radius:3px; font-size:11px; font-weight:bold; color:#000; border:1px solid #333; box-shadow:0 1px 3px rgba(0,0,0,0.3);">${obs.value.toFixed(0)} hPa</div>`,
-                iconSize: [48, 16],
-                iconAnchor: [24, 8]
-            })
-        });
-        
-        const age = Math.round((Date.now() - new Date(obs.time).getTime())/60000);
-        const popupContent = `
-            <strong>Paine</strong><br>
-            Asema: ${obs.stationName}<br>
-            Paine: <strong>${obs.value.toFixed(1)} hPa</strong><br>
-            Aika: ${formatTime(new Date(obs.time))}<br>
-            Ikä: ${age} minuuttia sitten
-        `;
-        
-        label.bindPopup(popupContent, { className: 'dark-popup' });
-        layers.pressure.addLayer(label);
+data.forEach(obs => {
+    const indicatorColor = getColorForPressure(obs.value);
+    const bgColor = getPressureBackground(obs.value);
+    
+    const label = L.marker([obs.lat, obs.lng], {
+        icon: L.divIcon({
+            className: 'pressure-label',
+            html: `<div style="background: ${bgColor}; --indicator-color: ${indicatorColor};">${obs.value.toFixed(0)} hPa</div>`,
+            iconSize: null,
+            iconAnchor: [0, 0]
+        })
     });
+    
+    const age = Math.round((Date.now() - new Date(obs.time).getTime())/60000);
+    const popupContent = `
+        <strong>🔵 Ilmanpaine</strong><br>
+        <div style="margin-top: 8px;">
+            📍 <strong>${obs.stationName}</strong><br>
+            🔵 Paine: <strong style="color: #4db8ff;">${obs.value.toFixed(1)} hPa</strong><br>
+            ⏰ Aika: ${formatTime(new Date(obs.time))}<br>
+            ⏱️ Ikä: ${age} minuuttia sitten
+        </div>
+    `;
+    
+    label.bindPopup(popupContent, { className: 'dark-popup' });
+    layers.pressure.addLayer(label);
+});
     
     status.textContent = original;
     status.className = 'status success';
