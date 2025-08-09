@@ -609,3 +609,41 @@ input:focus-visible {
     user-select: none;
     -webkit-touch-callout: none;
 }
+
+/* Ensure buttons are clickable/touchable */
+.button-tool {
+    position: relative;
+    z-index: 1;
+    touch-action: manipulation; /* Prevent double-tap zoom on this button */
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1); /* Subtle tap feedback */
+}
+
+/* Make sure button is not disabled by parent styles */
+.controls .button-tool {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+}
+
+/* Visual feedback on touch/click */
+.button-tool:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
+/* Ensure measure info doesn't block interactions when hidden */
+.measure-info.hidden {
+    display: none !important;
+    pointer-events: none;
+}
+
+/* Mobile-specific touch improvements */
+@media (pointer: coarse) {
+    .button-tool {
+        min-height: 44px; /* Minimum touch target size recommended by Apple/Google */
+        padding: 12px;
+    }
+    
+    .button-small {
+        min-height: 36px;
+    }
+}
