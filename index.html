@@ -3,1350 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suomen Säätutka Lämpötila- & Salamadatalla</title>
-    <!-- Libraries -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <meta name="description" content="Interaktiivinen Suomen säätutka reaaliaikaisella salama-, lämpötila-, tuuli-, kosteus-, paine- ja pilvisyysdatalla">
+    <meta name="keywords" content="säätutka, salama, lämpötila, tuuli, pilvisyys, Suomi, FMI">
+    <meta name="author" content="Finnish Weather Radar">
+    <title>Suomen Säätutka - Reaaliaikainen säädata</title>
+    
+    <!-- Preconnect to external domains for faster loading -->
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://openwms.fmi.fi">
+    <link rel="preconnect" href="https://opendata.fmi.fi">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous"/>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+    
+    <!-- Proj4js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    
+    <!-- Proj4Leaflet -->
     <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            background: #1e1e1e; /* Dark background for the page */
-        }
-        #map {
-            flex-grow: 1;
-            background-color: #d7edff; /* Hides tile edges in Chrome */
-        }
-        .footer {
-            padding: 4px;
-            background-color: #1e1e1e; /* Dark theme */
-            text-align: center;
-            font-size: 0.8em;
-            color: #aaa; /* Light text */
-            border-top: 1px solid #444; /* Dark border */
-        }
-        .controls {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: #2c2c2c; /* Dark background */
-            color: #f0f0f0;      /* Light text */
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5); /* Stronger shadow for dark bg */
-            min-width: 220px;
-            max-height: 90vh;
-            overflow-y: auto;
-            transition: all 0.2s ease-in-out; /* Smooth transition for hiding */
-        }
-        .controls label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 0.9em;
-        }
-        .controls input[type="range"] {
-            width: 100%;
-        }
-        .slider-container {
-            margin: 8px 0;
-        }
-        .slider-label {
-            font-size: 0.8em;
-            color: #bbb; /* Lightened for dark theme */
-            margin-bottom: 3px;
-        }
-        .time-display {
-            font-size: 0.8em;
-            text-align: center;
-            margin-top: 3px;
-            color: #fff; /* Lightened for dark theme */
-            font-weight: bold;
-        }
-        .status {
-            font-size: 0.8em;
-            margin-top: 5px;
-            padding: 5px 8px;
-            border-radius: 3px;
-            color: #f0f0f0;
-        }
-        /* Dark theme status colors */
-        .status.loading { background-color: #795502; }
-        .status.success { background-color: #1e602f; }
-        .status.error { background-color: #721c24; }
-
-        .legend {
-            font-size: 0.8em;
-            margin-top: 8px;
-            padding: 8px;
-            background: #1a1a1a;
-            border-radius: 3px;
-            border: 1px solid #444;
-        }
-        .legend-title {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #fff;
-        }
-
-        #toggle-controls-btn {
-            position: absolute;
-            top: 2px;
-            right: 6px;
-            background: none;
-            border: none;
-            color: #aaa;
-            font-size: 24px;
-            font-weight: bold;
-            line-height: 1;
-            padding: 5px;
-            cursor: pointer;
-            z-index: 1001; /* Ensure it's on top */
-        }
-        #toggle-controls-btn:hover {
-            color: #fff;
-        }
-        .controls.hidden {
-            min-width: 0;
-            padding: 0;
-            width: 45px;
-            height: 40px;
-            overflow: hidden;
-        }
-        .controls.hidden > *:not(#toggle-controls-btn) {
-            display: none; /* Hide all children except the toggle button */
-        }
-        /* Dark theme for popups */
-        .dark-popup .leaflet-popup-content-wrapper {
-            background: #2c2c2c;
-            color: #f0f0f0;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-        .dark-popup .leaflet-popup-content {
-            color: #f0f0f0;
-        }
-        .dark-popup .leaflet-popup-tip {
-            background: #2c2c2c;
-        }
-        .dark-popup a.leaflet-popup-close-button {
-            color: #aaa;
-        }
-        .dark-popup a.leaflet-popup-close-button:hover {
-            color: #fff;
-        }
-    </style>
 </head>
 <body>
-    <div id="map"></div>
-    <div class="controls hidden">
-        <button id="toggle-controls-btn" title="Näytä säädöt">☰</button>
+    <div id="map" role="main" aria-label="Sääkartta"></div>
+    
+    <div class="controls hidden" role="complementary" aria-label="Kartan säädöt">
+        <button id="toggle-controls-btn" title="Näytä säädöt" aria-label="Näytä tai piilota säädöt">☰</button>
         
-        <label> <input type="checkbox" id="lightning-toggle"> Näytä salamat </label>
-        <label> <input type="checkbox" id="temperature-toggle"> Näytä lämpötilat </label>
-        <label> <input type="checkbox" id="wind-toggle"> Näytä tuuli </label>
-        <label> <input type="checkbox" id="humidity-toggle"> Näytä kosteus </label>
-        <label> <input type="checkbox" id="pressure-toggle"> Näytä paine </label>
-        
-        <div class="slider-container">
-            <div class="slider-label">Tutkan läpinäkyvyys</div>
-            <input type="range" id="opacity-slider" min="0.3" max="1" step="0.1" value="0.7">
+        <h3>📊 Datakerrokset</h3>
+        <div class="control-group compact">
+            <label class="control-item">
+                <input type="checkbox" id="lightning-toggle" aria-label="Näytä salamat">
+                <span class="control-label">
+                    <span class="control-icon">⚡</span>
+                    <span>Salamat</span>
+                </span>
+            </label>
+            <label class="control-item">
+                <input type="checkbox" id="temperature-toggle" aria-label="Näytä lämpötilat">
+                <span class="control-label">
+                    <span class="control-icon">🌡️</span>
+                    <span>Lämpötilat</span>
+                </span>
+            </label>
+            <label class="control-item">
+                <input type="checkbox" id="wind-toggle" aria-label="Näytä tuuli">
+                <span class="control-label">
+                    <span class="control-icon">🌬️</span>
+                    <span>Tuuli</span>
+                </span>
+            </label>
+            <label class="control-item">
+                <input type="checkbox" id="clouds-toggle" aria-label="Näytä pilvisyys">
+                <span class="control-label">
+                    <span class="control-icon">☁️</span>
+                    <span>Pilvisyys</span>
+                </span>
+            </label>
+            <label class="control-item">
+                <input type="checkbox" id="humidity-toggle" aria-label="Näytä kosteus">
+                <span class="control-label">
+                    <span class="control-icon">💧</span>
+                    <span>Kosteus</span>
+                </span>
+            </label>
+            <label class="control-item">
+                <input type="checkbox" id="pressure-toggle" aria-label="Näytä paine">
+                <span class="control-label">
+                    <span class="control-icon">🔵</span>
+                    <span>Paine</span>
+                </span>
+            </label>
         </div>
         
-
+        <h3>⚙️ Asetukset</h3>
+        <div class="slider-container compact">
+            <div class="slider-label">
+                <span><span class="slider-icon">👁️</span> Tutkan läpinäkyvyys</span>
+                <span class="slider-value" id="opacity-value">70%</span>
+            </div>
+            <input type="range" id="opacity-slider" min="0.3" max="1" step="0.1" value="0.7" aria-label="Tutkan läpinäkyvyys">
+        </div>
         
-        <div class="slider-container">
-            <div class="slider-label">Tutkan aika</div>
-            <input type="range" id="history-slider" min="0" max="12" step="1" value="0">
+        <div class="slider-container compact">
+            <div class="slider-label">
+                <span><span class="slider-icon">⏱️</span> Aika</span>
+            </div>
+            <input type="range" id="history-slider" min="0" max="12" step="1" value="0" aria-label="Tutkan historia">
             <div class="time-display" id="time-display">Nyt (Live)</div>
-            <button id="animation-button" style="width: 100%; margin-top: 5px; padding: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                ▶ Toista animaatio
+        </div>
+        
+        <div class="button-group">
+            <button id="animation-button" class="button button-primary compact" aria-label="Toista animaatio">
+                <span class="button-icon">▶</span>
+                <span>Animaatio</span>
             </button>
-            <!-- MANUAL REFRESH BUTTON -->
-            <button id="refresh-btn" style="width: 100%; margin-top: 8px; padding: 5px; background: #5a6268; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                ⟳ Päivitä manuaalisesti
+            
+            <button id="refresh-btn" class="button button-secondary compact" aria-label="Päivitä manuaalisesti">
+                <span class="button-icon">⟳</span>
+                <span>Päivitä</span>
             </button>
         </div>
         
-        <div style="font-size: 0.8em; margin-top: 5px;">
-            Salamat: <span style="color: #ff0000;">●</span> Tuore
-            <span style="color: #ff8800;">●</span> 10min
-        </div>
+        <details class="legend-details">
+            <summary>📖 Selitteet</summary>
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #ff0000;"></span>
+                    <span>Tuore salama (&lt;5 min)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #ff8800;"></span>
+                    <span>Salama (5-10 min)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #ffaa00;"></span>
+                    <span>Vanha salama (&gt;10 min)</span>
+                </div>
+                <div class="legend-item">
+                    <span>☀️</span>
+                    <span>Selkeä (0-25%)</span>
+                </div>
+                <div class="legend-item">
+                    <span>⛅</span>
+                    <span>Puolipilvinen (25-75%)</span>
+                </div>
+                <div class="legend-item">
+                    <span>☁️</span>
+                    <span>Pilvinen (75-100%)</span>
+                </div>
+            </div>
+        </details>
         
-
-        
-        <div id="status" class="status">Valmis</div>
+        <div id="status" class="status" role="status" aria-live="polite">Valmis</div>
     </div>
-    <div class="footer">
-        Tutkan ikä: <span id="radar-age">--</span> |
-        Uusin salama: <span id="data-age">--</span> |
-        Näkyviä salamoita: <span id="lightning-count">0</span> |
-        Lämpötila-asemia: <span id="temp-count">0</span> |
-        Tuulimittauksia: <span id="wind-count">0</span> |
-        Seuraava päivitys: <span id="next-update-countdown">--</span>
-    </div>
-    <script>
-        // --- 1. CONFIGURATION & STATE ---
-        const MAX_STRIKE_AGE_MINUTES = 15;
-        const REFRESH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
-        const HISTORY_STEP_MINUTES = 5; // 5-minute steps
-        const MAX_HISTORY_STEPS = 12; // 12 steps = 1 hour
-        const ANIMATION_INTERVAL_MS = 1000; // 1 second between frames (slower for smoother loading)
-        
-        let lightningData = { type: "FeatureCollection", features: [] };
-        let newestStrikeTimestamp = null;
-        let radarLastUpdateTimestamp = null;
-        let nextRefreshTimestamp = null;
-        let currentHistoryStep = 0; // 0 = live, 1+ = minutes ago
-        let isAnimating = false;
-        let animationInterval = null;
-        let preloadedImages = new Map(); // Cache for preloaded radar images
-        let refreshInterval = null; // Store the refresh interval ID
-        let temperatureStationCount = 0; // Track number of temperature stations
-        let windStationCount = 0; // Track number of wind observations
-        const windLayerGroup = L.layerGroup();
-        const humidityStations = L.layerGroup();
-        const pressureStations = L.layerGroup();
-        
-        const timeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-
-        // --- 2. MAP & LAYER SETUP ---
-        const proj4_3067_def = '+proj=utm +zone=35 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
-        const crs_3067 = new L.Proj.CRS('EPSG:3067', proj4_3067_def, { resolutions: [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5], origin: [-548576, 8388608] });
-        
-        // --- START: Remember Map Position ---
-        // 1. Get the last saved position from localStorage, or use defaults.
-        let initialView = [64.5, 26.0];
-        let initialZoom = 4;
-        try {
-            const savedPosition = localStorage.getItem('mapPosition');
-            if (savedPosition) {
-                const parsed = JSON.parse(savedPosition);
-                // --- FIX: Use parseFloat and a !isNaN check for robustness ---
-                const lat = parseFloat(parsed.lat);
-                const lng = parseFloat(parsed.lng);
-                const zoom = parseInt(parsed.zoom, 10);
-
-                if (!isNaN(lat) && !isNaN(lng) && !isNaN(zoom)) {
-                    initialView = [lat, lng];
-                    initialZoom = zoom;
-                    console.log(`Restored map position to ${lat},${lng} at zoom ${zoom}`);
-                }
-            }
-        } catch (e) {
-            console.error('Could not restore map position from localStorage:', e);
-        }
-        // --- END: Remember Map Position ---
-
-        const map = L.map('map', {
-            crs: crs_3067,
-            minZoom: 1,
-            maxZoom: 8
-        }).setView(initialView, initialZoom); // Use the retrieved or default values
-
-        const localMapLayer = L.tileLayer('local_tiles/{z}/{y}/{x}.png', {
-            attribution: 'Maanmittauslaitos',
-            minZoom: 1,
-            maxZoom: 8,
-            errorUrl: '',
-            tms: false
-        }).addTo(map);
-
-        const fmiRadarLayer = L.tileLayer.wms('https://openwms.fmi.fi/geoserver/Radar/wms', { 
-            layers: 'Radar:suomi_dbz_eureffin', 
-            format: 'image/png', 
-            transparent: true, 
-            opacity: 0.7, 
-            zIndex: 10, 
-            attribution: 'Säätutka © FMI',
-            // Add these options for smoother loading
-            keepBuffer: 2,
-            updateWhenIdle: false,
-            updateWhenZooming: false
-        }).addTo(map);
-
-        // Temperature layer - FMI doesn't provide temperature as WMS raster layers
-        // Instead, we'll use point observations from WFS and display them as markers
-        let temperatureLayer = null;
-        let temperatureStations = L.layerGroup();
-        
-        const canvasRenderer = L.canvas({ padding: 0.5 });
-        const lightningLayer = L.geoJSON(null, { 
-            renderer: canvasRenderer, 
-            pointToLayer: (f,l) => { 
-                const a=(Date.now()-f.properties.timestamp)/60000; 
-                let c='#ffaa00'; 
-                if(a<5)c='#ff0000'; 
-                else if(a<10)c='#ff8800'; 
-                return L.circleMarker(l, {radius:4,fillColor:c,color:'#000',weight:1,opacity:1,fillOpacity:0.9}); 
-            }, 
-            onEachFeature: (f,l) => { 
-                const p=f.properties; 
-                const a=Math.round((Date.now()-p.timestamp)/60000); 
-                l.bindPopup(`<strong>Salama</strong><br>Aika: ${new Date(p.timestamp).toLocaleTimeString('sv-SE',timeFormatOptions)}<br>Voimakkuus: ${Math.round(p.intensity)} kA<br>Ikä: ${a} minuuttia sitten`, { className: 'dark-popup' }); 
-            } 
-        }).addTo(map);
-
-        // --- 3. TEMPERATURE DATA MANAGEMENT ---
-        async function fetchTemperatureData() {
-            try {
-                const endTime = new Date();
-                const startTime = new Date(endTime.getTime() - 15 * 60 * 1000); // Last 15 minutes for better coverage
-                
-                const url = `https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::weather::timevaluepair&parameters=temperature&starttime=${startTime.toISOString()}&endtime=${endTime.toISOString()}&bbox=19,59,32,71`;
-                
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                
-                const xmlText = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                
-                if (xmlDoc.querySelector('parsererror')) {
-                    throw new Error('XML parsing error');
-                }
-                
-                return parseTemperatureXML(xmlDoc);
-            } catch (error) {
-                console.error('Error fetching temperature data:', error);
-                return [];
-            }
-        }
-
-        function parseTemperatureXML(xmlDoc) {
-            const locations = new Map(); // Use location coordinates as key instead of station ID
-            
-            // Parse WFS response for temperature observations
-            xmlDoc.querySelectorAll('wfs\\:member, member').forEach(member => {
-                try {
-                    // Find the position element (gml:pos) which contains lat/lon
-                    const posElement = member.querySelector('gml\\:pos, pos');
-                    if (!posElement) return;
-
-                    const coords = posElement.textContent.trim().split(' ');
-                    if (coords.length < 2) return;
-                    
-                    const lat = parseFloat(coords[0]);
-                    const lng = parseFloat(coords[1]);
-                    if (isNaN(lat) || isNaN(lng)) return;
-                    
-                    // Create a location key based on rounded coordinates to group nearby stations
-                    const locationKey = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
-
-                    // Get station ID from the identifier element
-                    const stationIdEl = member.querySelector('gml\\:identifier[codeSpace="http://xml.fmi.fi/namespace/stationcode/fmisid"], identifier[codeSpace="http://xml.fmi.fi/namespace/stationcode/fmisid"]');
-                    const stationId = stationIdEl ? stationIdEl.textContent.trim() : 'unknown';
-
-                    // CORRECTLY get station name using the specific codeSpace attribute
-                    let stationNameEl = member.querySelector('gml\\:name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"]');
-                    if (!stationNameEl) { // Fallback for browsers that might handle namespaces differently
-                        stationNameEl = member.querySelector('name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"]');
-                    }
-                    const stationName = stationNameEl ? stationNameEl.textContent.trim() : stationId;
-                    
-                    // Get all temperature readings for this location
-                    const timeValuePairs = member.querySelectorAll('om\\:result, result');
-                    timeValuePairs.forEach(result => {
-                        const measurement = result.querySelector('wml2\\:MeasurementTVP, MeasurementTVP');
-                        if(!measurement) return;
-
-                        const timeEl = measurement.querySelector('wml2\\:time, time');
-                        const valueEl = measurement.querySelector('wml2\\:value, value');
-                        
-                        if (timeEl && valueEl && valueEl.textContent.trim() !== 'NaN' && valueEl.textContent.trim() !== '') {
-                            const temp = parseFloat(valueEl.textContent);
-                            if (!isNaN(temp) && temp > -50 && temp < 50) { // Sanity check for temperature range
-                                const time = new Date(timeEl.textContent);
-                                
-                                // Only keep the most recent reading for each location
-                                if (!locations.has(locationKey) || locations.get(locationKey).time < time) {
-                                    locations.set(locationKey, {
-                                        lat, lng, 
-                                        temperature: temp, 
-                                        time: time,
-                                        stationId: stationId,
-                                        stationName: stationName
-                                    });
-                                }
-                            }
-                        }
-                    });
-                } catch (error) {
-                    console.warn('Error parsing temperature station:', error);
-                }
-            });
-            
-            const result = Array.from(locations.values());
-            console.log(`Parsed ${result.length} unique temperature locations from XML`);
-            return result;
-        }
-
-        function getTemperatureColor(temp) {
-            if (temp < -20) return '#000080';      // Dark blue
-            if (temp < -10) return '#0040ff';      // Blue
-            if (temp < 0) return '#00ffff';        // Cyan
-            if (temp < 10) return '#00ff00';       // Green
-            if (temp < 20) return '#ffff00';       // Yellow
-            if (temp < 30) return '#ff8000';       // Orange
-            return '#ff0000';                      // Red
-        }
-
-        function getHumidityColor(rh) {
-            if (rh < 30) return '#ffcc00';  // dry - amber
-            if (rh < 60) return '#00ccff';  // moderate - cyan
-            if (rh < 80) return '#3399ff';  // humid - blue
-            return '#0044aa';               // very humid - dark blue
-        }
-
-        function getPressureColor(hpa) {
-            if (hpa < 990) return '#ff3333';   // low
-            if (hpa < 1005) return '#ff9933';  // below avg
-            if (hpa < 1020) return '#33cc33';  // normal-ish
-            return '#3399ff';                  // high
-        }
-
-        async function updateTemperatureLayer() {
-            const isVisible = document.getElementById('temperature-toggle').checked;
-            
-            if (isVisible) {
-                if (!map.hasLayer(temperatureStations)) {
-                    map.addLayer(temperatureStations);
-                }
-                
-                // Fetch and display temperature data
-                const status = document.getElementById('status');
-                const originalText = status.textContent;
-                status.textContent = 'Ladataan lämpötiloja...';
-                status.className = 'status loading';
-                
-                const tempData = await fetchTemperatureData();
-                
-                // Clear existing temperature markers
-                temperatureStations.clearLayers();
-                temperatureStationCount = 0;
-                
-                // Add temperature labels with colored backgrounds (no separate markers)
-                tempData.forEach(station => {
-                    const bgColor = getTemperatureColor(station.temperature);
-                    
-                    // Create only the temperature label with colored background
-                    const label = L.marker([station.lat, station.lng], {
-                        icon: L.divIcon({
-                            className: 'temp-label',
-                            html: `<div style="background: ${bgColor}; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; color: #000; border: 1px solid #333; box-shadow: 0 1px 3px rgba(0,0,0,0.3); text-shadow: 0 0 2px rgba(255,255,255,0.8);">${station.temperature.toFixed(0)}°</div>`,
-                            iconSize: [30, 16],
-                            iconAnchor: [15, 8]
-                        })
-                    });
-                    
-                    // Create the popup content
-                    const ageMinutes = Math.round((Date.now() - station.time.getTime()) / 60000);
-                    const popupContent = `
-                        <strong>Lämpötila-asema</strong><br>
-                        Nimi: ${station.stationName}<br>
-                        Lämpötila: <strong>${station.temperature.toFixed(1)}°C</strong><br>
-                        Aika: ${station.time.toLocaleTimeString('sv-SE', timeFormatOptions)}<br>
-                        Ikä: ${ageMinutes} minuuttia sitten<br>
-                        Sijainti: ${station.lat.toFixed(4)}, ${station.lng.toFixed(4)}
-                    `;
-
-                    // Bind popup to the label
-                    label.bindPopup(popupContent, { className: 'dark-popup' });
-                    
-                    temperatureStations.addLayer(label);
-                    temperatureStationCount++;
-                });
-                
-                // Update status and counter
-                status.textContent = originalText;
-                status.className = 'status success';
-                document.getElementById('temp-count').textContent = temperatureStationCount;
-                console.log(`Loaded ${temperatureStationCount} temperature stations (grid-reduced)`);
-                
-            } else {
-                if (map.hasLayer(temperatureStations)) {
-                    map.removeLayer(temperatureStations);
-                }
-                temperatureStationCount = 0;
-                document.getElementById('temp-count').textContent = '0';
-                console.log('Temperature layer removed from map');
-            }
-        }
-
-        // --- 3b. WIND DATA MANAGEMENT ---
-        async function fetchWindParamData(paramName) {
-            try {
-                const endTime = new Date();
-                const startTime = new Date(endTime.getTime() - 30 * 60 * 1000); // Last 30 minutes
-                const url = `https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::weather::timevaluepair&parameters=${paramName}&starttime=${startTime.toISOString()}&endtime=${endTime.toISOString()}&bbox=19,59,32,71`;
-
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const xmlText = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                if (xmlDoc.querySelector('parsererror')) {
-                    throw new Error('XML parsing error');
-                }
-                return parseLatestValueByLocation(xmlDoc);
-            } catch (error) {
-                console.error(`Error fetching wind param ${paramName}:`, error);
-                return [];
-            }
-        }
-
-        function parseLatestValueByLocation(xmlDoc) {
-            const locations = new Map();
-            xmlDoc.querySelectorAll('wfs\\:member, member').forEach(member => {
-                try {
-                    const posElement = member.querySelector('gml\\:pos, pos');
-                    if (!posElement) return;
-                    const coords = posElement.textContent.trim().split(' ');
-                    if (coords.length < 2) return;
-                    const lat = parseFloat(coords[0]);
-                    const lng = parseFloat(coords[1]);
-                    if (isNaN(lat) || isNaN(lng)) return;
-                    const locationKey = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
-
-                    let stationNameEl = member.querySelector('gml\\:name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"], name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"]');
-                    const stationName = stationNameEl ? stationNameEl.textContent.trim() : 'asema';
-
-                    const result = member.querySelector('om\\:result, result');
-                    if (!result) return;
-                    const measurements = result.querySelectorAll('wml2\\:MeasurementTVP, MeasurementTVP');
-                    let latest = null;
-                    measurements.forEach(m => {
-                        const timeEl = m.querySelector('wml2\\:time, time');
-                        const valueEl = m.querySelector('wml2\\:value, value');
-                        if (!timeEl || !valueEl) return;
-                        const valStr = valueEl.textContent.trim();
-                        if (valStr === '' || valStr === 'NaN') return;
-                        const value = parseFloat(valStr);
-                        if (isNaN(value)) return;
-                        const time = new Date(timeEl.textContent);
-                        if (!latest || time > latest.time) {
-                            latest = { time, value };
-                        }
-                    });
-                    if (!latest) return;
-                    const current = locations.get(locationKey);
-                    if (!current || latest.time > current.time) {
-                        locations.set(locationKey, { lat, lng, value: latest.value, time: latest.time, stationName });
-                    }
-                } catch (e) {
-                    console.warn('Error parsing wind observation:', e);
-                }
-            });
-            return Array.from(locations.values());
-        }
-
-        async function fetchWindData() {
-            const [speedData, dirData] = await Promise.all([
-                fetchWindParamData('windspeedms'),
-                fetchWindParamData('winddirection')
-            ]);
-
-            const byKey = new Map();
-            const keyOf = (lat, lng) => `${lat.toFixed(4)}_${lng.toFixed(4)}`;
-
-            speedData.forEach(s => {
-                byKey.set(keyOf(s.lat, s.lng), { lat: s.lat, lng: s.lng, speed: s.value, time: s.time, stationName: s.stationName });
-            });
-            dirData.forEach(d => {
-                const k = keyOf(d.lat, d.lng);
-                const existing = byKey.get(k) || { lat: d.lat, lng: d.lng, stationName: d.stationName };
-                existing.direction = d.value;
-                if (!existing.time || d.time > existing.time) existing.time = d.time;
-                byKey.set(k, existing);
-            });
-
-
-            // Keep only entries that have both speed and direction
-            return Array.from(byKey.values()).filter(e => typeof e.speed === 'number' && typeof e.direction === 'number');
-        }
-
-        function degreesToCardinal(deg) {
-            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-            const ix = Math.round(((deg % 360) / 45)) % 8;
-            return dirs[ix];
-        }
-
-        async function updateWindLayer() {
-            const isVisible = document.getElementById('wind-toggle').checked;
-
-            if (!isVisible) {
-                if (map.hasLayer(windLayerGroup)) map.removeLayer(windLayerGroup);
-                windLayerGroup.clearLayers();
-                windStationCount = 0;
-                const wc = document.getElementById('wind-count');
-                if (wc) wc.textContent = '0';
-                return;
-            }
-
-            if (!map.hasLayer(windLayerGroup)) map.addLayer(windLayerGroup);
-
-            const status = document.getElementById('status');
-            const originalText = status.textContent;
-            status.textContent = 'Ladataan tuulta...';
-            status.className = 'status loading';
-
-            const data = await fetchWindData();
-            windLayerGroup.clearLayers();
-            windStationCount = 0;
-
-            data.forEach(obs => {
-                const speed = Math.max(0, Math.min(60, obs.speed));
-                const direction = ((obs.direction % 360) + 360) % 360; // normalize
-                const length = 12 + Math.min(speed, 20) * 2; // px
-                const svgWidth = 14;
-                const svgHeight = length + 10;
-
-                const arrowSVG = `
-                    <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                            <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                                <feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#000" flood-opacity="0.6"/>
-                            </filter>
-                        </defs>
-                        <g filter="url(#shadow)" stroke="#00ff00" stroke-width="2" stroke-linecap="round" fill="none">
-                            <line x1="${svgWidth/2}" y1="${svgHeight-2}" x2="${svgWidth/2}" y2="${svgHeight-length}" />
-                            <path d="M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 - 4} ${svgHeight-length + 8} M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 + 4} ${svgHeight-length + 8}" />
-                        </g>
-                    </svg>`;
-
-                const marker = L.marker([obs.lat, obs.lng], {
-                    icon: L.divIcon({
-                        className: 'wind-icon',
-                        html: `<div style="display:flex; flex-direction:column; align-items:center; transform: rotate(${direction}deg);">${arrowSVG}</div>
-                               <div style="margin-top:2px; padding:1px 3px; border-radius:3px; background:#111; color:#fff; border:1px solid #333; font-size:10px; line-height:1;">${speed.toFixed(1)} m/s</div>`,
-                        iconSize: [svgWidth + 6, svgHeight + 16],
-                        iconAnchor: [Math.round((svgWidth + 6)/2), svgHeight - 2]
-                    })
-                });
-
-                const ageMinutes = Math.round((Date.now() - new Date(obs.time).getTime()) / 60000);
-                const popupContent = `
-                    <strong>Tuuli</strong><br>
-                    Asema: ${obs.stationName}<br>
-                    Nopeus: <strong>${speed.toFixed(1)} m/s</strong><br>
-                    Suunta: ${Math.round(direction)}° (${degreesToCardinal(direction)})<br>
-                    Aika: ${new Date(obs.time).toLocaleTimeString('sv-SE', timeFormatOptions)}<br>
-                    Ikä: ${ageMinutes} minuuttia sitten`;
-                marker.bindPopup(popupContent, { className: 'dark-popup' });
-                windLayerGroup.addLayer(marker);
-                windStationCount++;
-            });
-
-            const wc = document.getElementById('wind-count');
-            if (wc) wc.textContent = windStationCount.toString();
-            status.textContent = originalText;
-            status.className = 'status success';
-        }
-
-        // --- 3c. HUMIDITY & PRESSURE LAYERS ---
-        async function fetchHumidityData() {
-            return fetchWindParamData('humidity');
-        }
-
-        async function fetchPressureData() {
-            return fetchWindParamData('pressure');
-        }
-
-        async function updateHumidityLayer() {
-            const toggle = document.getElementById('humidity-toggle');
-            if (!toggle || !toggle.checked) {
-                if (map.hasLayer(humidityStations)) map.removeLayer(humidityStations);
-                humidityStations.clearLayers();
-                return;
-            }
-            if (!map.hasLayer(humidityStations)) map.addLayer(humidityStations);
-            const status = document.getElementById('status');
-            const original = status.textContent;
-            status.textContent = 'Ladataan kosteutta...';
-            status.className = 'status loading';
-            const data = await fetchHumidityData();
-            humidityStations.clearLayers();
-            data.forEach(obs => {
-                const color = getHumidityColor(obs.value);
-                const label = L.marker([obs.lat, obs.lng], {
-                    icon: L.divIcon({
-                        className: 'humidity-label',
-                        html: `<div style="background:${color}; padding:2px 6px; border-radius:3px; font-size:11px; font-weight:bold; color:#000; border:1px solid #333; box-shadow:0 1px 3px rgba(0,0,0,0.3);">${obs.value.toFixed(0)}%</div>`,
-                        iconSize: [34, 16],
-                        iconAnchor: [17, 8]
-                    })
-                });
-                const age = Math.round((Date.now() - new Date(obs.time).getTime())/60000);
-                label.bindPopup(``+
-                    `<strong>Ilmankosteus</strong><br>`+
-                    `Asema: ${obs.stationName}<br>`+
-                    `RH: <strong>${obs.value.toFixed(0)}%</strong><br>`+
-                    `Aika: ${new Date(obs.time).toLocaleTimeString('sv-SE', timeFormatOptions)}<br>`+
-                    `Ikä: ${age} minuuttia sitten`, { className: 'dark-popup' });
-                humidityStations.addLayer(label);
-            });
-            status.textContent = original;
-            status.className = 'status success';
-        }
-
-        async function updatePressureLayer() {
-            const toggle = document.getElementById('pressure-toggle');
-            if (!toggle || !toggle.checked) {
-                if (map.hasLayer(pressureStations)) map.removeLayer(pressureStations);
-                pressureStations.clearLayers();
-                return;
-            }
-            if (!map.hasLayer(pressureStations)) map.addLayer(pressureStations);
-            const status = document.getElementById('status');
-            const original = status.textContent;
-            status.textContent = 'Ladataan painetta...';
-            status.className = 'status loading';
-            const data = await fetchPressureData();
-            pressureStations.clearLayers();
-            data.forEach(obs => {
-                const color = getPressureColor(obs.value);
-                const label = L.marker([obs.lat, obs.lng], {
-                    icon: L.divIcon({
-                        className: 'pressure-label',
-                        html: `<div style="background:${color}; padding:2px 6px; border-radius:3px; font-size:11px; font-weight:bold; color:#000; border:1px solid #333; box-shadow:0 1px 3px rgba(0,0,0,0.3);">${obs.value.toFixed(0)} hPa</div>`,
-                        iconSize: [48, 16],
-                        iconAnchor: [24, 8]
-                    })
-                });
-                const age = Math.round((Date.now() - new Date(obs.time).getTime())/60000);
-                label.bindPopup(``+
-                    `<strong>Paine</strong><br>`+
-                    `Asema: ${obs.stationName}<br>`+
-                    `Paine: <strong>${obs.value.toFixed(1)} hPa</strong><br>`+
-                    `Aika: ${new Date(obs.time).toLocaleTimeString('sv-SE', timeFormatOptions)}<br>`+
-                    `Ikä: ${age} minuuttia sitten`, { className: 'dark-popup' });
-                pressureStations.addLayer(label);
-            });
-            status.textContent = original;
-            status.className = 'status success';
-        }
-
-        // --- 4. RADAR HISTORY FUNCTIONS ---
-        let availableRadarTimes = [];
-        
-        async function fetchAvailableRadarTimes() {
-            try {
-                // Get capabilities to find available times
-                const capabilitiesUrl = 'https://openwms.fmi.fi/geoserver/Radar/wms?service=WMS&version=1.1.1&request=GetCapabilities';
-                const response = await fetch(capabilitiesUrl);
-                const text = await response.text();
-                
-                // Parse XML to extract time dimension
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(text, 'text/xml');
-                
-                // Look for time dimension in the radar layer
-                const dimensions = xmlDoc.querySelectorAll('Dimension[name="time"], dimension[name="time"]');
-                for (let dim of dimensions) {
-                    const timeContent = dim.textContent.trim();
-                    if (timeContent.includes('/')) {
-                        // Parse time range format: start/end/period
-                        const parts = timeContent.split('/');
-                        if (parts.length >= 2) {
-                            const endTime = new Date(parts[1]);
-                            const times = [];
-                            
-                            // Generate times going back 1 hour in 5-minute steps
-                            for (let i = 0; i <= 12; i++) {
-                                const time = new Date(endTime.getTime() - (i * 5 * 60 * 1000));
-                                times.push(time);
-                            }
-                            availableRadarTimes = times;
-                            return;
-                        }
-                    }
-                }
-                
-                // Fallback: generate approximate times
-                generateFallbackTimes();
-                
-            } catch (error) {
-                console.warn('Could not fetch radar capabilities, using fallback times:', error);
-                generateFallbackTimes();
-            }
-        }
-        
-        function generateFallbackTimes() {
-            // Generate times rounded to nearest 5-minute mark
-            const now = new Date();
-            const roundedNow = new Date(now);
-            roundedNow.setMinutes(Math.floor(now.getMinutes() / 5) * 5);
-            roundedNow.setSeconds(0);
-            roundedNow.setMilliseconds(0);
-            
-            const times = [];
-            for (let i = 0; i <= 12; i++) {
-                const time = new Date(roundedNow.getTime() - (i * 5 * 60 * 1000));
-                times.push(time);
-            }
-            availableRadarTimes = times;
-        }
-
-        function getHistoricalRadarTime() {
-            if (currentHistoryStep === 0) return null; // Live data
-            if (availableRadarTimes.length > currentHistoryStep) {
-                return availableRadarTimes[currentHistoryStep];
-            }
-            // Fallback calculation
-            const minutesAgo = currentHistoryStep * HISTORY_STEP_MINUTES;
-            const time = new Date(Date.now() - minutesAgo * 60 * 1000);
-            // Round to nearest 5-minute mark
-            time.setMinutes(Math.floor(time.getMinutes() / 5) * 5);
-            time.setSeconds(0);
-            time.setMilliseconds(0);
-            return time;
-        }
-
-        // Preload radar images for smooth animation
-        async function preloadRadarImages() {
-            const bounds = map.getBounds();
-            const zoom = map.getZoom();
-            const size = map.getSize();
-            
-            for (let step = 0; step <= MAX_HISTORY_STEPS; step++) {
-                const timeKey = step === 0 ? 'live' : availableRadarTimes[step]?.toISOString();
-                if (!timeKey) continue;
-                
-                if (preloadedImages.has(timeKey)) continue; // Already preloaded
-                
-                try {
-                    const params = new URLSearchParams({
-                        service: 'WMS',
-                        version: '1.1.1',
-                        request: 'GetMap',
-                        layers: 'Radar:suomi_dbz_eureffin',
-                        format: 'image/png',
-                        transparent: 'true',
-                        width: size.x,
-                        height: size.y,
-                        srs: 'EPSG:3067',
-                        bbox: `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
-                    });
-                    
-                    if (step > 0 && availableRadarTimes[step]) {
-                        params.set('time', availableRadarTimes[step].toISOString());
-                    }
-                    
-                    const url = `https://openwms.fmi.fi/geoserver/Radar/wms?${params.toString()}`;
-                    
-                    // Preload image
-                    const img = new Image();
-                    img.crossOrigin = 'anonymous';
-                    await new Promise((resolve, reject) => {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                        img.src = url;
-                    });
-                    
-                    preloadedImages.set(timeKey, img);
-                } catch (error) {
-                    console.warn(`Failed to preload radar image for step ${step}:`, error);
-                }
-            }
-        }
-
-        function updateRadarLayer() {
-            const historicalTime = getHistoricalRadarTime();
-            const params = { 
-                layers: 'Radar:suomi_dbz_eureffin',
-                format: 'image/png',
-                transparent: true,
-                _cacheBust: Date.now()
-            };
-            
-            if (historicalTime) {
-                // Historical data - add time parameter
-                params.time = historicalTime.toISOString();
-                console.log('Setting radar to historical time:', params.time);
-            } else {
-                // Live data - explicitly remove any cached time parameter
-                console.log('Setting radar to live mode');
-                // This is the key fix - explicitly delete the time parameter from the layer's options
-                if (fmiRadarLayer.wmsParams) {
-                    delete fmiRadarLayer.wmsParams.time;
-                }
-            }
-            
-            fmiRadarLayer.setParams(params);
-        }
-
-        function updateTimeDisplay() {
-            const timeDisplay = document.getElementById('time-display');
-            if (currentHistoryStep === 0) {
-                timeDisplay.textContent = 'Nyt (Live)';
-            } else {
-                const historicalTime = getHistoricalRadarTime();
-                if (historicalTime) {
-                    // Show just the time in HH:MM format like server timestamps
-                    timeDisplay.textContent = historicalTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-                } else {
-                    // Fallback calculation
-                    const minutesAgo = currentHistoryStep * HISTORY_STEP_MINUTES;
-                    const fallbackTime = new Date(Date.now() - minutesAgo * 60 * 1000);
-                    timeDisplay.textContent = fallbackTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-                }
-            }
-        }
-
-        async function startAnimation() {
-            if (isAnimating) return;
-            
-            // Stop auto-refresh first
-            stopAutoRefresh();
-            
-            isAnimating = true;
-            const button = document.getElementById('animation-button');
-            button.textContent = '⏸ Pysäytä animaatio';
-            button.style.background = '#dc3545';
-            
-            // Preload images before starting animation
-            const status = document.getElementById('status');
-            status.textContent = 'Esiladataan animaatiota...';
-            status.className = 'status loading';
-            
-            await preloadRadarImages();
-            
-            status.textContent = 'Animaatio käynnissä';
-            status.className = 'status success';
-            
-            // Start from oldest data (step 12) and work towards live (step 0)
-            currentHistoryStep = MAX_HISTORY_STEPS;
-            updateHistorySlider();
-            
-            animationInterval = setInterval(() => {
-                currentHistoryStep--;
-                
-                if (currentHistoryStep < 0) {
-                    // Loop back to oldest
-                    currentHistoryStep = MAX_HISTORY_STEPS;
-                }
-                
-                updateHistorySlider();
-            }, ANIMATION_INTERVAL_MS);
-        }
-        
-        function stopAnimation() {
-            if (!isAnimating) return;
-            
-            console.log('Stopping animation');
-            isAnimating = false;
-            const button = document.getElementById('animation-button');
-            button.textContent = '▶ Toista animaatio';
-            button.style.background = '#007cba';
-            
-            if (animationInterval) {
-                clearInterval(animationInterval);
-                animationInterval = null;
-            }
-            
-            // Return to live view
-            currentHistoryStep = 0;
-            updateHistorySlider();
-            
-            // Restart automatic refresh
-            startAutoRefresh();
-            
-            // Force immediate refresh
-            setTimeout(refreshAll, 100);
-        }
-        
-        function updateHistorySlider() {
-            const slider = document.getElementById('history-slider');
-            slider.value = currentHistoryStep;
-            updateRadarLayer();
-            updateTimeDisplay();
-        }
-
-        // --- 5. AUTO REFRESH MANAGEMENT ---
-        function startAutoRefresh() {
-            if (refreshInterval) {
-                console.log('Auto-refresh already running');
-                return;
-            }
-            
-            console.log('Starting auto-refresh');
-            refreshInterval = setInterval(refreshAll, REFRESH_INTERVAL_MS);
-            nextRefreshTimestamp = Date.now() + REFRESH_INTERVAL_MS;
-        }
-        
-        function stopAutoRefresh() {
-            if (refreshInterval) {
-                console.log('Stopping auto-refresh');
-                clearInterval(refreshInterval);
-                refreshInterval = null;
-                nextRefreshTimestamp = null;
-            }
-        }
-
-        // --- 6. DATA FETCHING & PARSING ---
-        async function fetchLightningData() { 
-            const s=document.getElementById('status'); 
-            try{
-                s.textContent='Ladataan salamoita...';
-                s.className='status loading'; 
-                const e=new Date(),t=new Date(e.getTime()-30*60*1000); 
-                const a=`https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::lightning::simple&starttime=${t.toISOString()}&endtime=${e.toISOString()}&bbox=19,59,32,71`; 
-                const r=await fetch(a); 
-                if(!r.ok)throw new Error(`HTTP ${r.status}`); 
-                const n=await r.text(),o=new DOMParser,i=o.parseFromString(n,"text/xml"); 
-                if(i.querySelector("parsererror"))throw new Error("XML parsing error"); 
-                const l=parseLightningXML(i); 
-                s.textContent=`Ladattu ${l.length} salamaa`;
-                s.className='status success';
-                if(l.length>0){
-                    const c=Math.max(...l.map(d=>d.timestamp));
-                    c>newestStrikeTimestamp&&(newestStrikeTimestamp=c)
-                }
-                lightningData={type:"FeatureCollection",features:l.map(d=>({type:"Feature",geometry:{type:"Point",coordinates:[d.lng,d.lat]},properties:d}))}
-            }catch(c){
-                console.error("Error fetching lightning data:",c);
-                s.textContent=`Virhe: ${c.message}`;
-                s.className='status error';
-                lightningData={type:"FeatureCollection",features:[]}
-            } 
-        }
-        
-        function parseLightningXML(xmlDoc) { 
-            const t=[]; 
-            return xmlDoc.querySelectorAll("wfs\\:member, member").forEach(e=>{
-                try{
-                    const r=e.querySelector("BsWfsElement");
-                    if(!r)return;
-                    const a=e.querySelector("Location");
-                    if(!a)return;
-                    const o=a.querySelector("Point pos, pos");
-                    if(!o)return;
-                    const i=o.textContent.trim().split(" ");
-                    if(i.length<2)return;
-                    const l=parseFloat(i[0]),s=parseFloat(i[1]);
-                    if(isNaN(l)||isNaN(s))return;
-                    const n=e.querySelector("Time");
-                    let c=n?new Date(n.textContent.trim()).getTime():Date.now();
-                    const m=e.querySelector("ParameterValue > ParameterValue");
-                    let d=m?Math.abs(parseFloat(m.textContent)):50;
-                    t.push({lat:l,lng:s,timestamp:c,intensity:d})
-                }catch(r){
-                    console.warn("Error parsing a strike:",r)
-                }
-            }),t 
-        }
-        
-        function updateLightning() { 
-            lightningLayer.clearLayers(); 
-            const toggle = document.getElementById("lightning-toggle");
-            if(!toggle || !toggle.checked){
-                document.getElementById("lightning-count").textContent="0";
-                return;
-            }
-            const nowTs = Date.now();
-            let feats = lightningData.features.filter(f => (nowTs - f.properties.timestamp)/60000 < MAX_STRIKE_AGE_MINUTES);
-            // No decimation: show all within age window
-            lightningLayer.addData({type:"FeatureCollection",features:feats});
-            document.getElementById("lightning-count").textContent = feats.length.toString();
-        }
-        
-        function updateRadarAgeDisplay() { 
-            const t=document.getElementById("radar-age"); 
-            if(radarLastUpdateTimestamp){
-                const e=Math.round((Date.now()-radarLastUpdateTimestamp)/1e3),r=Math.floor(e/60),a=e%60;
-                t.textContent=`${r}m ${String(a).padStart(2,"0")}s sitten`
-            }else t.textContent="--"
-        }
-        
-        function updateLightningAgeDisplay() { 
-            const t=document.getElementById("data-age"); 
-            if(newestStrikeTimestamp){
-                const e=Math.round((Date.now()-newestStrikeTimestamp)/1e3),r=Math.floor(e/60),a=e%60;
-                t.textContent=`${r}m ${String(a).padStart(2,"0")}s sitten`
-            }else t.textContent="--"
-        }
-        
-        function updateCountdownDisplay() { 
-            const countdownEl = document.getElementById('next-update-countdown'); 
-            if (nextRefreshTimestamp && !isAnimating) { 
-                const remainingMs = nextRefreshTimestamp - Date.now(); 
-                if (remainingMs <= 0) { 
-                    countdownEl.textContent = 'Päivitetään...'; 
-                } else { 
-                    const remainingSeconds = Math.round(remainingMs / 1000); 
-                    const minutes = Math.floor(remainingSeconds / 60); 
-                    const seconds = remainingSeconds % 60; 
-                    countdownEl.textContent = `${minutes}:${String(seconds).padStart(2, '0')}`; 
-                } 
-            } else if (isAnimating) {
-                countdownEl.textContent = 'Animaatiotila';
-            } else { 
-                countdownEl.textContent = '--'; 
-            } 
-        }
-
-        // --- 7. REFRESH LOGIC ---
-        async function refreshAll() { 
-            console.log('refreshAll called, isAnimating:', isAnimating, 'currentHistoryStep:', currentHistoryStep);
-            
-            // Skip refresh during animation
-            if (isAnimating) {
-                console.log('Skipping refresh - animation running');
-                return;
-            }
-            
-            const now = Date.now(); 
-            radarLastUpdateTimestamp = now; 
-            
-            try {
-                await fetchLightningData(); 
-                updateLightning(); 
-                updateRadarLayer();
-                await updateTemperatureLayer(); // Update temperature layer
-                await updateWindLayer(); // Update wind layer
-                await updateHumidityLayer();
-                await updatePressureLayer();
-                nextRefreshTimestamp = Date.now() + REFRESH_INTERVAL_MS; 
-                console.log('refreshAll completed successfully');
-            } catch (error) {
-                console.error('Error in refreshAll:', error);
-            }
-        }
-
-        // --- 8. INITIALIZATION ---
-        async function initialize() {
-            console.log('Initializing application...');
-            
-            // --- START: Persistent Settings Management ---
-            const lightningToggle = document.getElementById('lightning-toggle');
-            const temperatureToggle = document.getElementById('temperature-toggle');
-            const windToggle = document.getElementById('wind-toggle');
-            const humidityToggle = document.getElementById('humidity-toggle');
-            const pressureToggle = document.getElementById('pressure-toggle');
-            const opacitySlider = document.getElementById('opacity-slider');
-
-            // 1. Restore settings on page load
-            const savedShowLightning = localStorage.getItem('showLightning');
-            if (savedShowLightning !== null) {
-                lightningToggle.checked = savedShowLightning === 'true';
-            }
-
-            const savedShowTemperature = localStorage.getItem('showTemperature');
-            if (savedShowTemperature !== null) {
-                temperatureToggle.checked = savedShowTemperature === 'true';
-            }
-
-            const savedShowWind = localStorage.getItem('showWind');
-            if (savedShowWind !== null) {
-                windToggle.checked = savedShowWind === 'true';
-            }
-
-            const savedShowHumidity = localStorage.getItem('showHumidity');
-            if (savedShowHumidity !== null) {
-                humidityToggle.checked = savedShowHumidity === 'true';
-            }
-
-            const savedShowPressure = localStorage.getItem('showPressure');
-            if (savedShowPressure !== null) {
-                pressureToggle.checked = savedShowPressure === 'true';
-            }
-
-            const savedRadarOpacity = localStorage.getItem('radarOpacity');
-            if (savedRadarOpacity !== null) {
-                const opacityValue = parseFloat(savedRadarOpacity);
-                if (!isNaN(opacityValue)) {
-                    opacitySlider.value = opacityValue;
-                    fmiRadarLayer.setOpacity(opacityValue);
-                }
-            }
-            // Helper: exclusive selection management among overlays
-            const toggleConfigs = [
-                { el: lightningToggle, key: 'showLightning', update: updateLightning },
-                { el: temperatureToggle, key: 'showTemperature', update: updateTemperatureLayer },
-                { el: windToggle, key: 'showWind', update: updateWindLayer },
-                { el: humidityToggle, key: 'showHumidity', update: updateHumidityLayer },
-                { el: pressureToggle, key: 'showPressure', update: updatePressureLayer },
-            ];
-
-            function setCheckedAndPersist(cfg, checked) {
-                cfg.el.checked = checked;
-                localStorage.setItem(cfg.key, checked);
-                cfg.update();
-            }
-
-            function setExclusive(activeCfg) {
-                toggleConfigs.forEach(cfg => {
-                    setCheckedAndPersist(cfg, cfg === activeCfg);
-                });
-            }
-
-            // Normalize restored state: keep at most one checked
-            const checkedCfgs = toggleConfigs.filter(cfg => cfg.el.checked);
-            if (checkedCfgs.length > 1) {
-                const keep = checkedCfgs[0];
-                toggleConfigs.forEach(cfg => setCheckedAndPersist(cfg, cfg === keep));
-            }
-            // --- END: Persistent Settings Management ---
-
-            // --- START: Save Map Position on Change ---
-            // 2. Save the map's position to localStorage whenever the user stops moving it.
-            function saveMapPosition() {
-                try {
-                    const position = {
-                        // --- FIX: Save the raw numbers, not strings from toFixed() ---
-                        lat: map.getCenter().lat,
-                        lng: map.getCenter().lng,
-                        zoom: map.getZoom()
-                    };
-                    localStorage.setItem('mapPosition', JSON.stringify(position));
-                } catch (e) {
-                    console.error('Could not save map position to localStorage:', e);
-                }
-            }
-            // The 'moveend' event fires after any panning or zooming.
-            map.on('moveend', saveMapPosition);
-            // --- END: Save Map Position on Change ---
-
-            await fetchAvailableRadarTimes();
-            await refreshAll();
-            // ensure optional layers render on first load
-            await updateHumidityLayer();
-            await updatePressureLayer();
-            // Ensure optional layers that were toggled on are drawn at first load
-            await updateTemperatureLayer();
-            await updateWindLayer();
-            updateTimeDisplay();
-            
-            // Setup event listeners with exclusive selection behavior
-            lightningToggle.addEventListener('change', () => {
-                if (lightningToggle.checked) setExclusive(toggleConfigs[0]);
-                else { localStorage.setItem('showLightning', 'false'); updateLightning(); }
-            });
-
-            temperatureToggle.addEventListener('change', () => {
-                if (temperatureToggle.checked) setExclusive(toggleConfigs[1]);
-                else { localStorage.setItem('showTemperature', 'false'); updateTemperatureLayer(); }
-            });
-
-            windToggle.addEventListener('change', () => {
-                if (windToggle.checked) setExclusive(toggleConfigs[2]);
-                else { localStorage.setItem('showWind', 'false'); updateWindLayer(); }
-            });
-
-            humidityToggle.addEventListener('change', () => {
-                if (humidityToggle.checked) setExclusive(toggleConfigs[3]);
-                else { localStorage.setItem('showHumidity', 'false'); updateHumidityLayer(); }
-            });
-
-            pressureToggle.addEventListener('change', () => {
-                if (pressureToggle.checked) setExclusive(toggleConfigs[4]);
-                else { localStorage.setItem('showPressure', 'false'); updatePressureLayer(); }
-            });
-
-            opacitySlider.addEventListener('input', e => {
-                const newOpacity = e.target.value;
-                fmiRadarLayer.setOpacity(newOpacity);
-                localStorage.setItem('radarOpacity', newOpacity);
-            });
-            
-            document.getElementById('history-slider').addEventListener('input', e => {
-                if (isAnimating) stopAnimation();
-                
-                const newStep = parseInt(e.target.value);
-                currentHistoryStep = newStep;
-                
-                // Manage auto refresh based on whether we're in live mode
-                if (currentHistoryStep === 0) {
-                    startAutoRefresh();
-                } else {
-                    stopAutoRefresh();
-                }
-                
-                updateRadarLayer();
-                updateTimeDisplay();
-            });
-            
-            const animationButton = document.getElementById('animation-button');
-            if (animationButton) {
-                animationButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (isAnimating) {
-                        stopAnimation();
-                    } else {
-                        startAnimation();
-                    }
-                });
-            }
-
-            // --- Manual Refresh Button Logic ---
-            const refreshBtn = document.getElementById('refresh-btn');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', async () => {
-                    console.log('Manual refresh clicked');
-                    refreshBtn.disabled = true;
-                    refreshBtn.textContent = 'Päivitetään...';
-                    
-                    // Stop animation if running
-                    if (isAnimating) {
-                        stopAnimation();
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                    }
-                    
-                    // Force to live mode
-                    currentHistoryStep = 0;
-                    document.getElementById('history-slider').value = 0;
-                    updateTimeDisplay();
-                    
-                    // Force refresh
-                    await refreshAll();
-                    
-                    // Ensure auto-refresh is running
-                    startAutoRefresh();
-                    
-                    refreshBtn.disabled = false;
-                    refreshBtn.innerHTML = '⟳ Päivitä manuaalisesti';
-                    console.log('Manual refresh completed');
-                });
-            }
-
-            // --- Hide/Show Button Logic ---
-            const controlsPanel = document.querySelector('.controls');
-            const toggleBtn = document.getElementById('toggle-controls-btn');
-            if (toggleBtn && controlsPanel) {
-                toggleBtn.addEventListener('click', () => {
-                    controlsPanel.classList.toggle('hidden');
-                    if (controlsPanel.classList.contains('hidden')) {
-                        toggleBtn.innerHTML = '☰'; // Hamburger icon
-                        toggleBtn.title = 'Näytä säädöt';
-                    } else {
-                        toggleBtn.innerHTML = '×'; // 'x' symbol
-                        toggleBtn.title = 'Piilota säädöt';
-                    }
-                });
-            }
-            
-            // Start automatic refresh system
-            startAutoRefresh();
-            
-            // Setup display update intervals
-            setInterval(updateRadarAgeDisplay, 1000);
-            setInterval(updateLightningAgeDisplay, 1000);
-            setInterval(updateCountdownDisplay, 1000);
-            setInterval(fetchAvailableRadarTimes, 10 * 60 * 1000);
-        }
-        
-        // Wait for DOM to be fully loaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initialize);
-        } else {
-            initialize();
-        }
-    </script>
+    
+    <footer class="footer" role="contentinfo">
+        <span>Tutka: <strong id="radar-age">--</strong></span>
+        <span class="separator">|</span>
+        <span>Salama: <strong id="data-age">--</strong></span>
+        <span class="separator">|</span>
+        <span>Salamoita: <strong id="lightning-count">0</strong></span>
+        <span class="separator">|</span>
+        <span>Lämpötiloja: <strong id="temp-count">0</strong></span>
+        <span class="separator">|</span>
+        <span>Tuulia: <strong id="wind-count">0</strong></span>
+        <span class="separator">|</span>
+        <span>Pilvisyys: <strong id="cloud-count">0</strong></span>
+        <span class="separator">|</span>
+        <span>Päivitys: <strong id="next-update-countdown">--</strong></span>
+    </footer>
+    
+    <!-- Load main JavaScript module -->
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
