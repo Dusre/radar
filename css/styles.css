@@ -683,24 +683,24 @@ input:focus-visible {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
 }
 
 .cloud-icon {
-    font-size: 16px !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    font-size: 20px !important; /* Increased from 16px */
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
 .cloud-percentage {
     display: inline-block !important;
-    background: rgba(0,0,0,0.8) !important;
+    background: rgba(0,0,0,0.85) !important;
     color: #fff !important;
-    padding: 1px 3px !important;
-    border-radius: 3px !important;
-    font-size: 8px !important;
-    font-weight: 500 !important;
+    padding: 2px 5px !important; /* Increased padding */
+    border-radius: 4px !important;
+    font-size: 10px !important; /* Increased from 8px */
+    font-weight: 600 !important; /* Bolder */
     margin-top: -2px !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
     white-space: nowrap;
     line-height: 1.2 !important;
 }
@@ -886,7 +886,7 @@ input:focus-visible {
     }
     
     .cloud-icon {
-        font-size: 14px !important;
+        font-size: 18px !important;
     }
     
     .wind-icon svg {
@@ -900,8 +900,8 @@ input:focus-visible {
     }
     
     .cloud-percentage {
-        font-size: 7px !important;
-        padding: 1px 2px !important;
+        font-size: 9px !important;
+        padding: 1px 4px !important;
     }
     
     /* Measurement on mobile */
