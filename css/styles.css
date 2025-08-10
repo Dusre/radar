@@ -38,34 +38,24 @@ html, body {
     position: relative;
 }
 
-/* Animated gradient footer */
+/* Simplified footer with only update timer */
 .footer {
-    padding: 8px 12px;
+    padding: 6px 12px;
     background: linear-gradient(90deg, #1a1a1a, #2c2c2c, #1a1a1a);
-    background-size: 200% 100%;
-    animation: gradientShift 10s ease infinite;
     text-align: center;
     font-size: 0.85em;
     color: var(--text-light);
-    border-top: 2px solid var(--accent-blue);
+    border-top: 1px solid var(--accent-blue);
     display: flex;
     justify-content: center;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
 }
 
-@keyframes gradientShift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-}
-
-.footer > span {
-    white-space: nowrap;
+.footer span {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
 }
 
 .footer strong {
@@ -78,7 +68,7 @@ html, body {
     user-select: none;
 }
 
-/* Enhanced controls panel with glassmorphism effect */
+/* Enhanced controls panel - more compact */
 .controls {
     position: absolute;
     top: 10px;
@@ -88,14 +78,14 @@ html, body {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: var(--text-light);
-    padding: 10px;
+    padding: 8px;
     border-radius: 12px;
     box-shadow: var(--shadow-lg);
-    min-width: 240px;
-    max-width: 300px;
+    min-width: 220px;
+    max-width: 280px;
     max-height: 90vh;
     overflow-y: auto;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.3s;
     scrollbar-width: thin;
     scrollbar-color: var(--border-dark) transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -120,54 +110,38 @@ html, body {
 }
 
 .controls h3 {
-    margin: 0 0 10px 0;
-    font-size: 0.95em;
+    margin: 0 0 6px 0;
+    font-size: 0.85em;
     color: var(--text-light);
-    border-bottom: 2px solid var(--accent-blue);
-    padding-bottom: 6px;
+    border-bottom: 1px solid var(--accent-blue);
+    padding-bottom: 4px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     font-weight: 600;
 }
 
-/* Enhanced control items with hover effects */
+/* More compact control items */
 .control-group.compact {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 4px;
 }
 
 .control-item {
     display: flex;
     align-items: center;
-    padding: 6px 8px;
-    border-radius: 8px;
-    font-size: 0.85em;
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 0.8em;
     cursor: pointer;
     user-select: none;
-    transition: all 0.2s;
+    transition: background-color 0.2s, border-color 0.2s;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid transparent;
     position: relative;
     overflow: hidden;
-}
-
-.control-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
-    transform: translateX(-100%);
-    transition: transform 0.3s;
-}
-
-.control-item:hover::before {
-    transform: translateX(0);
 }
 
 .control-item:hover {
@@ -176,10 +150,10 @@ html, body {
 }
 
 .control-item input[type="checkbox"] {
-    margin-right: 6px;
+    margin-right: 4px;
     cursor: pointer;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     accent-color: var(--accent-blue);
 }
 
@@ -190,35 +164,35 @@ html, body {
 .control-label {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     position: relative;
     z-index: 1;
 }
 
 .control-icon {
-    font-size: 1.2em;
+    font-size: 1em;
     line-height: 1;
 }
 
-/* Enhanced sliders with modern styling */
+/* Compact sliders */
 .slider-container.compact {
-    margin: 12px 0;
-    padding: 8px;
+    margin: 8px 0;
+    padding: 6px;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    border-radius: 6px;
 }
 
 .slider-label {
-    font-size: 0.85em;
+    font-size: 0.8em;
     color: var(--text-light);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 .slider-icon {
-    font-size: 1.1em;
+    font-size: 0.9em;
     margin-right: 2px;
 }
 
@@ -226,16 +200,17 @@ html, body {
     font-weight: bold;
     color: #4db8ff;
     background: rgba(77, 184, 255, 0.2);
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.75em;
 }
 
-/* Custom styled range input */
+/* Smaller range input */
 input[type="range"] {
     width: 100%;
-    margin: 8px 0;
+    margin: 4px 0;
     cursor: pointer;
-    height: 6px;
+    height: 4px;
     -webkit-appearance: none;
     appearance: none;
     background: rgba(255, 255, 255, 0.1);
@@ -246,13 +221,13 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     background: var(--gradient-blue);
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 122, 186, 0.4);
-    transition: all 0.2s;
+    transition: transform 0.2s;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
@@ -261,14 +236,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     background: var(--gradient-blue);
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 122, 186, 0.4);
     border: none;
-    transition: all 0.2s;
+    transition: transform 0.2s;
 }
 
 input[type="range"]::-moz-range-thumb:hover {
@@ -277,33 +252,33 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .time-display {
-    font-size: 0.9em;
+    font-size: 0.8em;
     text-align: center;
-    margin-top: 6px;
-    padding: 6px;
+    margin-top: 4px;
+    padding: 4px;
     background: var(--gradient-blue);
-    border-radius: 6px;
+    border-radius: 4px;
     color: white;
     font-weight: bold;
     box-shadow: 0 2px 8px rgba(0, 122, 186, 0.3);
 }
 
-/* Enhanced button group */
+/* Compact button group */
 .button-group {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin: 12px 0;
+    gap: 6px;
+    margin: 8px 0;
 }
 
 .button {
-    padding: 8px 12px;
+    padding: 6px 8px;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 0.85em;
+    font-size: 0.8em;
     font-weight: 600;
-    transition: all 0.2s;
+    transition: box-shadow 0.2s;
     color: white;
     text-align: center;
     display: inline-flex;
@@ -315,22 +290,8 @@ input[type="range"]::-moz-range-thumb:hover {
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-.button::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.button:active::before {
-    width: 300px;
-    height: 300px;
+.button.compact {
+    padding: 5px 6px;
 }
 
 .button:hover {
@@ -366,41 +327,32 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .button-tool.active {
     background: var(--gradient-blue);
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { 
-        box-shadow: 0 2px 8px rgba(0, 122, 186, 0.3);
-    }
-    50% { 
-        box-shadow: 0 2px 16px rgba(0, 122, 186, 0.6);
-    }
+    box-shadow: 0 2px 16px rgba(0, 122, 186, 0.6);
 }
 
 .button-icon {
-    font-size: 1.2em;
+    font-size: 1em;
 }
 
-/* Enhanced legend with collapsible animation */
+/* Compact legend */
 .legend-details {
-    margin-top: 12px;
+    margin-top: 8px;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     overflow: hidden;
-    transition: all 0.3s;
+    transition: background-color 0.2s;
 }
 
 .legend-details summary {
-    padding: 8px 10px;
+    padding: 6px 8px;
     cursor: pointer;
-    font-size: 0.85em;
+    font-size: 0.8em;
     font-weight: 600;
     user-select: none;
     list-style: none;
     background: rgba(255, 255, 255, 0.05);
-    transition: all 0.2s;
+    transition: background-color 0.2s;
 }
 
 .legend-details summary:hover {
@@ -427,29 +379,17 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .legend {
-    font-size: 0.8em;
-    padding: 10px;
-    animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    font-size: 0.75em;
+    padding: 6px;
 }
 
 .legend-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-    padding: 2px 0;
-    transition: all 0.2s;
+    gap: 6px;
+    margin-bottom: 2px;
+    padding: 1px 0;
+    transition: color 0.2s;
 }
 
 .legend-item:hover {
@@ -457,84 +397,68 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .legend-color {
-    width: 14px;
-    height: 14px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    border: 2px solid rgba(0,0,0,0.3);
+    border: 1px solid rgba(0,0,0,0.3);
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
-/* Enhanced status messages */
+/* Compact status - no animation */
 .status {
-    font-size: 0.85em;
-    margin-top: 10px;
-    padding: 6px 10px;
-    border-radius: 6px;
+    font-size: 0.8em;
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
     color: var(--text-light);
     text-align: center;
-    transition: all 0.3s;
+    transition: background-color 0.3s;
     font-weight: 500;
 }
 
 .status.loading {
-    background: linear-gradient(90deg, #795502, #9b6f03, #795502);
-    background-size: 200% 100%;
-    animation: loadingGradient 2s ease infinite;
-}
-
-@keyframes loadingGradient {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
+    background: #795502;
 }
 
 .status.success {
     background: linear-gradient(135deg, #1e602f 0%, #2a7a3f 100%);
-    animation: successPop 0.5s ease;
-}
-
-@keyframes successPop {
-    0% { transform: scale(0.95); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
 }
 
 .status.error {
     background: linear-gradient(135deg, #721c24 0%, #922832 100%);
-    animation: shake 0.5s;
 }
 
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-}
-
-/* Toggle button enhancement */
+/* Toggle button - completely transparent */
 #toggle-controls-btn {
     position: absolute;
     top: 6px;
-    right: 8px;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
+    right: 6px;
+    background: none !important; /* Force no background */
+    border: none !important;
     color: var(--text-light);
-    font-size: 20px;
-    font-weight: bold;
-    line-height: 1;
-    padding: 6px;
     cursor: pointer;
     z-index: 1001;
-    transition: all 0.3s;
+    transition: transform 0.3s, color 0.3s;
     border-radius: 6px;
     width: 32px;
     height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    line-height: 0;
+    padding: 0;
+    box-shadow: none !important; /* Remove any shadow */
 }
 
 #toggle-controls-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: none !important; /* Keep transparent on hover */
+    color: #4db8ff;
     transform: rotate(90deg);
+}
+
+/* Make sure the button stays visible against the map */
+#toggle-controls-btn {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5); /* Add shadow to the icon itself for visibility */
 }
 
 .controls.hidden {
@@ -554,23 +478,23 @@ input[type="range"]::-moz-range-thumb:hover {
     display: none;
 }
 
-/* Tool section enhancement */
+/* Tool section compact */
 .tool-section {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 2px solid rgba(255, 255, 255, 0.1);
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .tool-section h3 {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .measure-info {
-    margin-top: 10px;
-    padding: 10px;
+    margin-top: 6px;
+    padding: 6px;
     background: rgba(0, 255, 0, 0.1);
-    border-radius: 8px;
-    font-size: 0.85em;
+    border-radius: 6px;
+    font-size: 0.8em;
     border: 1px solid rgba(0, 255, 0, 0.3);
 }
 
@@ -580,7 +504,7 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .measure-instructions {
     color: var(--text-light);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     text-align: center;
     font-weight: 500;
 }
@@ -589,18 +513,18 @@ input[type="range"]::-moz-range-thumb:hover {
     text-align: center;
     font-weight: bold;
     color: #4dff4d;
-    margin-bottom: 10px;
-    min-height: 20px;
-    font-size: 1.1em;
+    margin-bottom: 6px;
+    min-height: 16px;
+    font-size: 0.95em;
 }
 
 .button-small {
-    padding: 4px 8px;
-    font-size: 0.8em;
+    padding: 3px 6px;
+    font-size: 0.75em;
     width: 100%;
 }
 
-/* Loading spinner enhancement */
+/* Simple loading spinner */
 .spinner {
     display: inline-block;
     width: 14px;
@@ -608,11 +532,6 @@ input[type="range"]::-moz-range-thumb:hover {
     border: 2px solid rgba(255,255,255,0.3);
     border-radius: 50%;
     border-top-color: white;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 
 /* Focus styles for accessibility */
@@ -650,7 +569,7 @@ input:focus-visible {
     color: var(--text-light);
 }
 
-/* Enhanced weather data labels on map */
+/* Weather data labels - simplified without animations */
 
 /* Auto-sizing for all weather labels */
 .temp-label,
@@ -663,7 +582,7 @@ input:focus-visible {
     pointer-events: all;
 }
 
-/* Temperature labels with gradient backgrounds */
+/* Temperature labels - no animations */
 .temp-label > div {
     display: inline-block;
     padding: 4px 10px !important;
@@ -672,55 +591,15 @@ input:focus-visible {
     font-weight: 600 !important;
     color: #fff !important;
     border: 2px solid rgba(255,255,255,0.3) !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    position: relative;
-    overflow: hidden;
-    animation: fadeInScale 0.3s ease-out;
     white-space: nowrap;
     transform: translate(-50%, -50%);
 }
 
-@keyframes fadeInScale {
-    from {
-        opacity: 0;
-        transform: scale(0.8) translate(-50%, -50%);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translate(-50%, -50%);
-    }
-}
-
-/* Add a subtle shimmer effect */
-.temp-label > div::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(
-        45deg,
-        transparent 30%,
-        rgba(255,255,255,0.2) 50%,
-        transparent 70%
-    );
-    animation: shimmer 3s infinite;
-}
-
-@keyframes shimmer {
-    0% {
-        transform: translateX(-100%) translateY(-100%);
-    }
-    100% {
-        transform: translateX(100%) translateY(100%);
-    }
-}
-
-/* Enhanced Humidity labels - water droplet inspired */
+/* Humidity labels - simplified */
 .humidity-label > div {
     display: inline-block;
     padding: 6px 12px !important;
@@ -729,68 +608,15 @@ input:focus-visible {
     font-weight: 600 !important;
     color: #fff !important;
     border: 2px solid rgba(255,255,255,0.4) !important;
-    box-shadow: 
-        0 3px 10px rgba(0,0,0,0.3),
-        inset 0 1px 0 rgba(255,255,255,0.3),
-        inset 0 -1px 0 rgba(0,0,0,0.2) !important;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3) !important;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    animation: fadeInScale 0.3s ease-out;
     white-space: nowrap;
     transform: translate(-50%, -50%);
-    position: relative;
-    overflow: hidden;
 }
 
-/* Water effect overlay for humidity */
-.humidity-label > div::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(
-        ellipse at center,
-        rgba(255,255,255,0.3) 0%,
-        transparent 70%
-    );
-    animation: waterShine 4s ease-in-out infinite;
-}
-
-@keyframes waterShine {
-    0%, 100% {
-        transform: translate(-30%, -30%) scale(0.8);
-        opacity: 0.5;
-    }
-    50% {
-        transform: translate(-20%, -20%) scale(1);
-        opacity: 0.8;
-    }
-}
-
-/* Humidity icon with droplet */
-.humidity-label > div::after {
-    content: '💧';
-    position: absolute;
-    right: -8px;
-    top: -8px;
-    font-size: 16px;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
-    animation: dropletBounce 3s ease-in-out infinite;
-}
-
-@keyframes dropletBounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-2px);
-    }
-}
-
-/* Enhanced Pressure labels - gauge/technical inspired */
+/* Pressure labels - simplified */
 .pressure-label > div {
     display: inline-block;
     padding: 5px 14px !important;
@@ -801,31 +627,12 @@ input:focus-visible {
     text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
     white-space: nowrap;
     transform: translate(-50%, -50%);
-    position: relative;
-    
-    /* Hexagonal shape with cut corners */
-    background: 
-        linear-gradient(135deg, transparent 4px, #2a2a2a 4px, #2a2a2a),
-        linear-gradient(-135deg, transparent 4px, #2a2a2a 4px, #2a2a2a),
-        linear-gradient(45deg, transparent 4px, #2a2a2a 4px, #2a2a2a),
-        linear-gradient(-45deg, transparent 4px, #2a2a2a 4px, #2a2a2a);
-    background-position: top left, top right, bottom right, bottom left;
-    background-size: 50% 50%;
-    background-repeat: no-repeat;
-    
+    background: #2a2a2a;
     border: 2px solid #444 !important;
-    border-radius: 0 !important;
-    
-    box-shadow: 
-        0 2px 8px rgba(0,0,0,0.4),
-        inset 0 1px 0 rgba(255,255,255,0.1),
-        inset 0 -1px 0 rgba(0,0,0,0.3) !important;
-    
-    animation: fadeInScale 0.3s ease-out;
-    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
 }
 
-/* Pressure gauge indicator */
+/* Pressure gauge indicator - static */
 .pressure-label > div::before {
     content: '';
     position: absolute;
@@ -833,35 +640,18 @@ input:focus-visible {
     top: 50%;
     transform: translateY(-50%);
     width: 4px;
-    height: 60%;
+    height: 70%;
     border-radius: 2px;
     background: var(--indicator-color, #44ff44);
-    animation: pressurePulse 2s ease-in-out infinite;
+    opacity: 0.8;
 }
 
-@keyframes pressurePulse {
-    0%, 100% {
-        opacity: 0.6;
-        height: 60%;
-    }
-    50% {
-        opacity: 1;
-        height: 80%;
-    }
-}
-
-/* Wind arrow enhancements */
+/* Wind arrow - no animations */
 .wind-icon {
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
-    animation: fadeIn 0.3s ease-out;
     display: flex;
     flex-direction: column;
     align-items: center;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
 }
 
 .wind-icon svg {
@@ -891,39 +681,17 @@ input:focus-visible {
     white-space: nowrap;
 }
 
-/* Enhanced cloud icons */
+/* Cloud icons - simplified */
 .cloud-icon-container {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
     filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
-    animation: floatIn 0.5s ease-out;
-}
-
-@keyframes floatIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .cloud-icon {
     font-size: 24px !important;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-    animation: gentleFloat 3s ease-in-out infinite;
-}
-
-@keyframes gentleFloat {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-2px);
-    }
 }
 
 .cloud-percentage {
@@ -942,7 +710,7 @@ input:focus-visible {
     white-space: nowrap;
 }
 
-/* Hover effects for all weather labels - NO MOVEMENT */
+/* Hover effects - simple, no movement */
 .temp-label:hover > div,
 .humidity-label:hover > div,
 .pressure-label:hover > div {
@@ -962,34 +730,7 @@ input:focus-visible {
     filter: brightness(1.1);
 }
 
-/* Add glow effects for extreme values */
-.temp-label[data-extreme="hot"] > div {
-    animation: hotGlow 2s ease-in-out infinite;
-}
-
-@keyframes hotGlow {
-    0%, 100% {
-        box-shadow: 0 2px 8px rgba(255,100,0,0.4);
-    }
-    50% {
-        box-shadow: 0 2px 16px rgba(255,100,0,0.8);
-    }
-}
-
-.temp-label[data-extreme="cold"] > div {
-    animation: coldGlow 2s ease-in-out infinite;
-}
-
-@keyframes coldGlow {
-    0%, 100% {
-        box-shadow: 0 2px 8px rgba(0,150,255,0.4);
-    }
-    50% {
-        box-shadow: 0 2px 16px rgba(0,150,255,0.8);
-    }
-}
-
-/* Measurement tool visual enhancement */
+/* Measurement tool - simplified */
 .measurement-marker {
     background: #4dff4d;
     border: 2px solid #000;
@@ -997,16 +738,6 @@ input:focus-visible {
     width: 14px;
     height: 14px;
     box-shadow: 0 2px 8px rgba(77, 255, 77, 0.5);
-    animation: measurePulse 2s infinite;
-}
-
-@keyframes measurePulse {
-    0%, 100% {
-        box-shadow: 0 2px 8px rgba(77, 255, 77, 0.5);
-    }
-    50% {
-        box-shadow: 0 2px 16px rgba(77, 255, 77, 0.8);
-    }
 }
 
 .measurement-label {
@@ -1034,26 +765,101 @@ input:focus-visible {
     transform: translate(-50%, -50%);
 }
 
-/* Mobile responsive improvements */
+/* Mobile specific - even more compact */
 @media (max-width: 768px) {
-    .controls {
-        min-width: 260px;
-        max-width: calc(100vw - 40px);
-        font-size: 0.95em;
+    .footer {
+        font-size: 0.8em;
+        padding: 4px 8px;
+    }
+}
+    
+    .controls h3 {
+        font-size: 0.8em;
+        margin-bottom: 4px;
+        padding-bottom: 3px;
     }
     
     .control-group.compact {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+        gap: 3px;
+        margin-bottom: 6px;
     }
     
     .control-item {
-        padding: 10px 12px;
-        min-height: 44px;
+        padding: 6px;
+        min-height: 32px;
+        font-size: 0.75em;
+    }
+    
+    .control-icon {
+        font-size: 0.9em;
+    }
+    
+    /* Keep text visible on mobile */
+    .control-label {
+        gap: 1px;
+    }
+    
+    .control-label span:not(.control-icon) {
+        font-size: 0.7em;
     }
     
     .button {
-        min-height: 44px;
+        min-height: 32px;
+        font-size: 0.75em;
+        padding: 4px 6px;
+    }
+    
+    .button-icon {
         font-size: 0.9em;
+    }
+    
+    .button-group .button span:not(.button-icon) {
+        font-size: 0.65em;
+    }
+    
+    .button-group {
+        gap: 4px;
+    }
+    
+    .slider-container.compact {
+        margin: 6px 0;
+        padding: 4px;
+    }
+    
+    .legend-details {
+        margin-top: 6px;
+    }
+    
+    .legend-details summary {
+        padding: 4px 6px;
+        font-size: 0.75em;
+    }
+    
+    .legend {
+        padding: 4px;
+        font-size: 0.7em;
+    }
+    
+    .legend-item {
+        margin-bottom: 1px;
+        gap: 4px;
+    }
+    
+    .status {
+        margin-top: 6px;
+        padding: 3px 6px;
+        font-size: 0.75em;
+    }
+    
+    .tool-section {
+        margin-top: 6px;
+        padding-top: 6px;
+    }
+    
+    .measure-info {
+        padding: 4px;
+        font-size: 0.75em;
     }
     
     .footer {
@@ -1098,25 +904,41 @@ input:focus-visible {
         font-size: 14px;
         padding: 6px 10px;
     }
+}
+
+/* Ultra-compact mode for very small screens */
+@media (max-width: 400px) {
+    .controls {
+        min-width: 180px;
+        padding: 4px;
+    }
     
-    /* Touch-friendly targets */
-    @media (pointer: coarse) {
-        .button-tool {
-            min-height: 44px;
-            padding: 12px;
-        }
-        
-        .button-small {
-            min-height: 36px;
-        }
+    .control-group.compact {
+        gap: 2px;
+    }
+    
+    .control-item {
+        padding: 4px;
+        border-radius: 4px;
+    }
+    
+    .control-label span:not(.control-icon) {
+        font-size: 0.65em;
+    }
+    
+    .legend-details {
+        display: none;
     }
 }
 
-/* Accessibility improvements */
-@media (prefers-reduced-motion: reduce) {
-    * {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+/* Touch-friendly targets */
+@media (pointer: coarse) {
+    .button-tool {
+        min-height: 36px;
+        padding: 8px;
+    }
+    
+    .button-small {
+        min-height: 32px;
     }
 }

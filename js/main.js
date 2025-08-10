@@ -18,8 +18,8 @@ import {
     updateHistorySlider 
 } from './animations.js';
 import { 
-    updateRadarAgeDisplay, 
-    updateLightningAgeDisplay, 
+    // updateRadarAgeDisplay, 
+    // updateLightningAgeDisplay, 
     updateCountdownDisplay,
     updateTimeDisplay 
 } from './ui-updates.js';
@@ -279,8 +279,8 @@ async function initialize() {
     startAutoRefresh();
     
     // Setup periodic updates
-    setInterval(updateRadarAgeDisplay, 1000);
-    setInterval(updateLightningAgeDisplay, 1000);
+    // setInterval(updateRadarAgeDisplay, 1000);
+    // setInterval(updateLightningAgeDisplay, 1000);
     setInterval(updateCountdownDisplay, 1000);
     setInterval(fetchAvailableRadarTimes, 10 * 60 * 1000);
     

@@ -20,14 +20,14 @@ export function formatTime(date) {
 }
 
 export function getColorForTemperature(temp) {
-    // Return gradient colors for temperature ranges
-    if (temp < -20) return 'linear-gradient(135deg, #001a4d, #003380)';
-    if (temp < -10) return 'linear-gradient(135deg, #0040ff, #0066ff)';
-    if (temp < 0) return 'linear-gradient(135deg, #00ccff, #00ffff)';
-    if (temp < 10) return 'linear-gradient(135deg, #00cc00, #00ff00)';
-    if (temp < 20) return 'linear-gradient(135deg, #ffcc00, #ffff00)';
-    if (temp < 30) return 'linear-gradient(135deg, #ff8000, #ffaa00)';
-    return 'linear-gradient(135deg, #ff0000, #ff3333)';
+    // Return darker gradient colors for temperature ranges
+    if (temp < -20) return 'linear-gradient(135deg, #000033, #000066)'; // Very dark blue
+    if (temp < -10) return 'linear-gradient(135deg, #001a66, #003399)'; // Dark blue
+    if (temp < 0) return 'linear-gradient(135deg, #0066cc, #0099cc)'; // Medium blue
+    if (temp < 10) return 'linear-gradient(135deg, #006600, #009900)'; // Dark green
+    if (temp < 20) return 'linear-gradient(135deg, #996600, #cc9900)'; // Dark yellow/amber
+    if (temp < 30) return 'linear-gradient(135deg, #cc6600, #ff8800)'; // Dark orange
+    return 'linear-gradient(135deg, #990000, #cc0000)'; // Dark red
 }
 
 export function getColorForHumidity(rh) {

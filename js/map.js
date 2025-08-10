@@ -48,7 +48,9 @@ export function initializeMap() {
         minZoom: 1,
         maxZoom: 8,
         center: mapPosition.center,
-        zoom: mapPosition.zoom
+        zoom: mapPosition.zoom,
+        preferCanvas: true, 
+        renderer: L.canvas()
     });
     
     // Save map position on move

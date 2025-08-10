@@ -1,29 +1,29 @@
 import { state } from './state.js';
 import { CONFIG } from './config.js';
 
-export function updateRadarAgeDisplay() {
-    const element = document.getElementById('radar-age');
-    if (state.radarLastUpdateTimestamp) {
-        const seconds = Math.round((Date.now() - state.radarLastUpdateTimestamp) / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-        element.textContent = `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s sitten`;
-    } else {
-        element.textContent = '--';
-    }
-}
+// export function updateRadarAgeDisplay() {
+    // const element = document.getElementById('radar-age');
+    // if (state.radarLastUpdateTimestamp) {
+        // const seconds = Math.round((Date.now() - state.radarLastUpdateTimestamp) / 1000);
+        // const minutes = Math.floor(seconds / 60);
+        // const remainingSeconds = seconds % 60;
+        // element.textContent = `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s sitten`;
+    // } else {
+        // element.textContent = '--';
+    // }
+// }
 
-export function updateLightningAgeDisplay() {
-    const element = document.getElementById('data-age');
-    if (state.newestStrikeTimestamp) {
-        const seconds = Math.round((Date.now() - state.newestStrikeTimestamp) / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-        element.textContent = `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s sitten`;
-    } else {
-        element.textContent = '--';
-    }
-}
+// export function updateLightningAgeDisplay() {
+    // const element = document.getElementById('data-age');
+    // if (state.newestStrikeTimestamp) {
+        // const seconds = Math.round((Date.now() - state.newestStrikeTimestamp) / 1000);
+        // const minutes = Math.floor(seconds / 60);
+        // const remainingSeconds = seconds % 60;
+        // element.textContent = `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s sitten`;
+    // } else {
+        // element.textContent = '--';
+    // }
+// }
 
 export function updateCountdownDisplay() {
     const element = document.getElementById('next-update-countdown');

@@ -14,7 +14,7 @@ export function updateLightning() {
     const toggle = document.getElementById('lightning-toggle');
     
     if (!toggle || !toggle.checked) {
-        document.getElementById('lightning-count').textContent = '0';
+        // document.getElementById('lightning-count').textContent = '0';
         return;
     }
     
@@ -28,7 +28,7 @@ export function updateLightning() {
         features: visibleFeatures
     });
     
-    document.getElementById('lightning-count').textContent = visibleFeatures.length.toString();
+    // document.getElementById('lightning-count').textContent = visibleFeatures.length.toString();
 }
 
 export async function updateTemperatureLayer() {
@@ -40,7 +40,7 @@ export async function updateTemperatureLayer() {
         }
         layers.temperature.clearLayers();
         state.temperatureStationCount = 0;
-        document.getElementById('temp-count').textContent = '0';
+        // document.getElementById('temp-count').textContent = '0';
         return;
     }
     
@@ -92,7 +92,7 @@ export async function updateTemperatureLayer() {
     
     status.textContent = originalText;
     status.className = 'status success';
-    document.getElementById('temp-count').textContent = state.temperatureStationCount;
+    // document.getElementById('temp-count').textContent = state.temperatureStationCount;
 }
 
 export async function updateWindLayer() {
@@ -104,7 +104,7 @@ export async function updateWindLayer() {
         }
         layers.wind.clearLayers();
         state.windStationCount = 0;
-        document.getElementById('wind-count').textContent = '0';
+        // document.getElementById('wind-count').textContent = '0';
         return;
     }
     
@@ -167,7 +167,7 @@ const marker = L.marker([obs.lat, obs.lng], {
         state.windStationCount++;
     });
     
-    document.getElementById('wind-count').textContent = state.windStationCount.toString();
+    // document.getElementById('wind-count').textContent = state.windStationCount.toString();
     status.textContent = originalText;
     status.className = 'status success';
 }
@@ -181,7 +181,7 @@ export async function updateCloudLayer() {
         }
         layers.clouds.clearLayers();
         state.cloudStationCount = 0;
-        document.getElementById('cloud-count').textContent = '0';
+        // document.getElementById('cloud-count').textContent = '0';
         return;
     }
     
@@ -238,7 +238,7 @@ const marker = L.marker([station.lat, station.lng], {
     
     status.textContent = originalText;
     status.className = 'status success';
-    document.getElementById('cloud-count').textContent = state.cloudStationCount;
+    // document.getElementById('cloud-count').textContent = state.cloudStationCount;
 }
 
 export async function updateHumidityLayer() {
