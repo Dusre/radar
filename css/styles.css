@@ -34,11 +34,12 @@ html, body {
 
 #map {
     flex-grow: 1;
+    height: 100%;
     background-color: #d7edff;
     position: relative;
 }
 
-/* Simplified footer with only update timer */
+/* Static gradient footer - no animation */
 .footer {
     padding: 6px 12px;
     background: linear-gradient(90deg, #1a1a1a, #2c2c2c, #1a1a1a);
@@ -61,11 +62,6 @@ html, body {
 .footer strong {
     color: #4db8ff;
     font-weight: 600;
-}
-
-.footer .separator {
-    color: #4a4a4a;
-    user-select: none;
 }
 
 /* Enhanced controls panel - more compact */
@@ -428,12 +424,12 @@ input[type="range"]::-moz-range-thumb:hover {
     background: linear-gradient(135deg, #721c24 0%, #922832 100%);
 }
 
-/* Toggle button - completely transparent */
+/* Toggle button - transparent background */
 #toggle-controls-btn {
     position: absolute;
     top: 6px;
-    right: 6px;
-    background: none !important; /* Force no background */
+    right: 5px;
+    background: none !important;
     border: none !important;
     color: var(--text-light);
     cursor: pointer;
@@ -447,18 +443,14 @@ input[type="range"]::-moz-range-thumb:hover {
     font-size: 18px;
     line-height: 0;
     padding: 0;
-    box-shadow: none !important; /* Remove any shadow */
+    box-shadow: none !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 
 #toggle-controls-btn:hover {
-    background: none !important; /* Keep transparent on hover */
+    background: none !important;
     color: #4db8ff;
     transform: rotate(90deg);
-}
-
-/* Make sure the button stays visible against the map */
-#toggle-controls-btn {
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5); /* Add shadow to the icon itself for visibility */
 }
 
 .controls.hidden {
@@ -524,6 +516,34 @@ input[type="range"]::-moz-range-thumb:hover {
     width: 100%;
 }
 
+/* Status section with update timer */
+.status-section {
+    margin-top: 8px;
+}
+
+.update-timer {
+    margin-top: 6px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    font-size: 0.8em;
+    color: var(--text-light);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.update-timer strong {
+    color: #4db8ff;
+    font-weight: 600;
+}
+
+.update-icon {
+    font-size: 1em;
+}
+
 /* Simple loading spinner */
 .spinner {
     display: inline-block;
@@ -569,7 +589,7 @@ input:focus-visible {
     color: var(--text-light);
 }
 
-/* Weather data labels - simplified without animations */
+/* MEDIUM-SIZED WEATHER LABELS - READABLE BUT COMPACT */
 
 /* Auto-sizing for all weather labels */
 .temp-label,
@@ -582,155 +602,136 @@ input:focus-visible {
     pointer-events: all;
 }
 
-/* Temperature labels - no animations */
+/* Temperature labels - medium size */
 .temp-label > div {
     display: inline-block;
-    padding: 4px 10px !important;
-    border-radius: 12px !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    padding: 2px 4px !important;
+    border-radius: 6px !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
     color: #fff !important;
-    border: 2px solid rgba(255,255,255,0.3) !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5) !important;
     white-space: nowrap;
     transform: translate(-50%, -50%);
+    line-height: 1.2 !important;
 }
 
-/* Humidity labels - simplified */
+/* Humidity labels - medium size */
 .humidity-label > div {
     display: inline-block;
-    padding: 6px 12px !important;
-    border-radius: 20px 20px 20px 4px !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    padding: 2px 4px !important;
+    border-radius: 6px !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
     color: #fff !important;
-    border: 2px solid rgba(255,255,255,0.4) !important;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.3) !important;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5) !important;
     white-space: nowrap;
     transform: translate(-50%, -50%);
+    line-height: 1.2 !important;
 }
 
-/* Pressure labels - simplified */
+/* Pressure labels - medium size */
 .pressure-label > div {
     display: inline-block;
-    padding: 5px 14px !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.5px;
+    padding: 1px 3px !important;
+    font-size: 9px !important;
+    font-weight: 500 !important;
     color: #fff !important;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
     white-space: nowrap;
     transform: translate(-50%, -50%);
     background: #2a2a2a;
-    border: 2px solid #444 !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+    border: 1px solid #555 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+    border-radius: 4px !important;
+    line-height: 1.2 !important;
 }
 
-/* Pressure gauge indicator - static */
-.pressure-label > div::before {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 70%;
-    border-radius: 2px;
-    background: var(--indicator-color, #44ff44);
-    opacity: 0.8;
-}
-
-/* Wind arrow - no animations */
+/* Wind arrow and label */
 .wind-icon {
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
     display: flex;
     flex-direction: column;
     align-items: center;
-}
-
-.wind-icon svg {
     filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
 }
 
-.wind-icon svg g {
-    stroke: #00ff88 !important;
-    stroke-width: 2.5 !important;
-    filter: drop-shadow(0 0 4px rgba(0,255,136,0.6));
+.wind-icon svg {
+    width: 16px !important;  
+    height: 20px !important;
 }
 
-/* Wind speed label */
 .wind-icon > div:last-child {
-    display: inline-block;
-    margin-top: 4px !important;
-    padding: 3px 8px !important;
-    border-radius: 10px !important;
-    background: linear-gradient(135deg, rgba(0,255,136,0.9), rgba(0,200,100,0.9)) !important;
+    display: inline-block !important;
+    margin-top: 2px !important;
+    padding: 2px 5px !important;
+    border-radius: 4px !important;
+    background: rgba(0,255,136,0.9) !important;
     color: #000 !important;
-    border: 1px solid rgba(0,0,0,0.2) !important;
-    font-size: 11px !important;
+    border: 1px solid rgba(0,0,0,0.3) !important;
+    font-size: 10px !important;
     font-weight: 600 !important;
-    box-shadow: 0 2px 6px rgba(0,255,136,0.4) !important;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
     white-space: nowrap;
+    line-height: 1.2 !important;
 }
 
-/* Cloud icons - simplified */
+/* Cloud icons - medium size */
 .cloud-icon-container {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
-    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
 }
 
 .cloud-icon {
-    font-size: 24px !important;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+    font-size: 16px !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .cloud-percentage {
-    display: inline-block;
-    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(30,30,30,0.8)) !important;
+    display: inline-block !important;
+    background: rgba(0,0,0,0.8) !important;
     color: #fff !important;
-    padding: 2px 8px !important;
-    border-radius: 10px !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    margin-top: -4px !important;
-    border: 1px solid rgba(255,255,255,0.2) !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    padding: 1px 3px !important;
+    border-radius: 3px !important;
+    font-size: 8px !important;
+    font-weight: 500 !important;
+    margin-top: -2px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
     white-space: nowrap;
+    line-height: 1.2 !important;
 }
 
-/* Hover effects - simple, no movement */
+/* Simple hover effects */
 .temp-label:hover > div,
 .humidity-label:hover > div,
 .pressure-label:hover > div {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5) !important;
     cursor: pointer;
     z-index: 1000;
-    filter: brightness(1.1);
+    filter: brightness(1.05);
 }
 
-.cloud-icon-container:hover {
-    cursor: pointer;
-    filter: brightness(1.1);
-}
-
+.cloud-icon-container:hover,
 .wind-icon:hover {
     cursor: pointer;
-    filter: brightness(1.1);
+    filter: brightness(1.05);
 }
 
-/* Measurement tool - simplified */
+/* Remove ALL decorative elements */
+.humidity-label > div::after,
+.humidity-label > div::before,
+.pressure-label > div::before,
+.pressure-label > div::after,
+.temp-label > div::before,
+.temp-label > div::after {
+    display: none !important;
+}
+
+/* Measurement tool */
 .measurement-marker {
     background: #4dff4d;
     border: 2px solid #000;
@@ -765,13 +766,14 @@ input:focus-visible {
     transform: translate(-50%, -50%);
 }
 
-/* Mobile specific - even more compact */
+/* Mobile specific */
 @media (max-width: 768px) {
-    .footer {
-        font-size: 0.8em;
-        padding: 4px 8px;
+    .controls {
+        min-width: 200px;
+        max-width: calc(100vw - 20px);
+        font-size: 0.9em;
+        padding: 6px;
     }
-}
     
     .controls h3 {
         font-size: 0.8em;
@@ -795,7 +797,6 @@ input:focus-visible {
         font-size: 0.9em;
     }
     
-    /* Keep text visible on mobile */
     .control-label {
         gap: 1px;
     }
@@ -864,29 +865,43 @@ input:focus-visible {
     
     .footer {
         font-size: 0.8em;
-        padding: 6px 8px;
-        gap: 8px;
+        padding: 4px 8px;
     }
     
-    .footer .separator {
-        display: none;
+    .update-timer {
+        font-size: 0.75em;
+        padding: 3px 6px;
     }
     
-    /* Weather labels on mobile */
+    /* Weather labels on mobile - same medium size */
     .temp-label > div,
-    .humidity-label > div,
+    .humidity-label > div {
+        font-size: 10px !important;
+        padding: 2px 4px !important;
+    }
+    
     .pressure-label > div {
-        font-size: 13px !important;
-        padding: 5px 11px !important;
+        font-size: 9px !important;
+        padding: 1px 3px !important;
     }
     
     .cloud-icon {
-        font-size: 22px !important;
+        font-size: 14px !important;
+    }
+    
+    .wind-icon svg {
+        width: 14px !important;
+        height: 18px !important;
     }
     
     .wind-icon > div:last-child {
-        font-size: 12px !important;
-        padding: 4px 9px !important;
+        font-size: 9px !important;
+        padding: 2px 4px !important;
+    }
+    
+    .cloud-percentage {
+        font-size: 7px !important;
+        padding: 1px 2px !important;
     }
     
     /* Measurement on mobile */
