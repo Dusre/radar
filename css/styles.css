@@ -957,3 +957,41 @@ input:focus-visible {
         min-height: 32px;
     }
 }
+
+/* Chrome-specific optimizations */
+@supports (-webkit-appearance: none) {
+    /* Force hardware acceleration for Chrome */
+    .temp-label,
+    .humidity-label,
+    .pressure-label,
+    .wind-icon,
+    .cloud-label {
+        transform: translateZ(0);
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-font-smoothing: antialiased;
+    }
+    
+    /* Reduce shadow complexity for Chrome */
+    .temp-label > div,
+    .humidity-label > div,
+    .pressure-label > div {
+        box-shadow: 0 1px 2px rgba(0,0,0,0.5) !important; /* Simpler shadow */
+    }
+    
+    /* Disable backdrop filters in Chrome (performance heavy) */
+    .controls {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background: rgba(44, 44, 44, 0.98) !important; /* Solid background instead */
+    }
+}
+
+/* Use CSS containment for better performance */
+.temp-label > div,
+.humidity-label > div,
+.pressure-label > div,
+.wind-icon,
+.cloud-label {
+    contain: layout style paint;
+}
