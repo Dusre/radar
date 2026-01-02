@@ -1,40 +1,43 @@
 <!DOCTYPE html>
 <html lang="fi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Interaktiivinen Suomen säätutka reaaliaikaisella salama-, lämpötila-, tuuli-, kosteus-, paine- ja pilvisyysdatalla">
+    <meta name="description"
+        content="Interaktiivinen Suomen säätutka reaaliaikaisella salama-, lämpötila-, tuuli-, kosteus-, paine- ja pilvisyysdatalla">
     <meta name="keywords" content="säätutka, salama, lämpötila, tuuli, pilvisyys, Suomi, FMI">
     <meta name="author" content="Finnish Weather Radar">
     <title>Suomen Säätutka - Reaaliaikainen säädata</title>
-    
+
     <!-- Preconnect to external domains for faster loading -->
     <link rel="preconnect" href="https://unpkg.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://openwms.fmi.fi">
     <link rel="preconnect" href="https://opendata.fmi.fi">
-    
+
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous"/>
-    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/styles.css">
-    
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
-    
+
     <!-- Proj4js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
-    
+
     <!-- Proj4Leaflet -->
     <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
 </head>
+
 <body>
     <div id="map" role="main" aria-label="Sääkartta"></div>
-    
+
     <div class="controls hidden" role="complementary" aria-label="Kartan säädöt">
         <button id="toggle-controls-btn" title="Näytä säädöt" aria-label="Näytä tai piilota säädöt">☰</button>
-        
+
         <h3>📊 Datakerrokset</h3>
         <div class="control-group compact">
             <label class="control-item">
@@ -80,51 +83,52 @@
                 </span>
             </label>
         </div>
-        
+
         <h3>⚙️ Asetukset</h3>
         <div class="slider-container compact">
             <div class="slider-label">
                 <span><span class="slider-icon">👁️</span> Tutkan läpinäkyvyys</span>
                 <span class="slider-value" id="opacity-value">70%</span>
             </div>
-            <input type="range" id="opacity-slider" min="0.3" max="1" step="0.1" value="0.7" aria-label="Tutkan läpinäkyvyys">
+            <input type="range" id="opacity-slider" min="0.3" max="1" step="0.1" value="0.7"
+                aria-label="Tutkan läpinäkyvyys">
         </div>
-        
+
         <div class="slider-container compact">
             <div class="slider-label">
                 <span><span class="slider-icon">⏱️</span> Aika</span>
             </div>
-            <input type="range" id="history-slider" min="0" max="12" step="1" value="0" aria-label="Tutkan historia">
+            <input type="range" id="history-slider" min="0" max="12" step="1" value="12" aria-label="Tutkan historia">
             <div class="time-display" id="time-display">Nyt (Live)</div>
         </div>
-        
+
         <div class="button-group">
             <button id="animation-button" class="button button-primary compact" aria-label="Toista animaatio">
                 <span class="button-icon">▶</span>
                 <span>Animaatio</span>
             </button>
-            
+
             <button id="refresh-btn" class="button button-secondary compact" aria-label="Päivitä manuaalisesti">
                 <span class="button-icon">⟳</span>
                 <span>Päivitä</span>
             </button>
         </div>
-		
-<div class="tool-section">
-    <h3>🛠️ Työkalut</h3>
-    <button id="measure-btn" class="button button-tool" aria-label="Mittaustyökalu">
-        <span class="button-icon">📏</span>
-        <span>Mittaa etäisyys</span>
-    </button>
-    <div id="measure-info" class="measure-info hidden">
-        <div class="measure-instructions">Klikkaa kahta pistettä kartalla</div>
-        <div id="measure-result" class="measure-result"></div>
-        <button id="clear-measure-btn" class="button button-small button-secondary">
-            Tyhjennä
-        </button>
-    </div>
-</div>
-        
+
+        <div class="tool-section">
+            <h3>🛠️ Työkalut</h3>
+            <button id="measure-btn" class="button button-tool" aria-label="Mittaustyökalu">
+                <span class="button-icon">📏</span>
+                <span>Mittaa etäisyys</span>
+            </button>
+            <div id="measure-info" class="measure-info hidden">
+                <div class="measure-instructions">Klikkaa kahta pistettä kartalla</div>
+                <div id="measure-result" class="measure-result"></div>
+                <button id="clear-measure-btn" class="button button-small button-secondary">
+                    Tyhjennä
+                </button>
+            </div>
+        </div>
+
         <details class="legend-details">
             <summary>📖 Selitteet</summary>
             <div class="legend">
@@ -154,16 +158,17 @@
                 </div>
             </div>
         </details>
-        
-       <div id="status" class="status" role="status" aria-live="polite">
-    Valmis <span id="lightning-count-inline" style="display: none;">• Salamoita: <strong>0</strong></span>
-</div>
-    
-    <footer class="footer" role="contentinfo">
-        <span>⏱️ Päivitys: <strong id="next-update-countdown">--</strong></span>
-    </footer>
-    
-    <!-- Load main JavaScript module -->
-    <script type="module" src="js/main.js"></script>
+
+        <div id="status" class="status" role="status" aria-live="polite">
+            Valmis <span id="lightning-count-inline" style="display: none;">• Salamoita: <strong>0</strong></span>
+        </div>
+
+        <footer class="footer" role="contentinfo">
+            <span>⏱️ Päivitys: <strong id="next-update-countdown">--</strong></span>
+        </footer>
+
+        <!-- Load main JavaScript module -->
+        <script type="module" src="js/main.js"></script>
 </body>
+
 </html>

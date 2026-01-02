@@ -58,7 +58,7 @@ export function initializeMap() {
     
     // Add base layers
     layers.localMap = L.tileLayer('local_tiles/{z}/{y}/{x}.png', {
-        attribution: 'Maanmittauslaitos',
+        attribution: '© Maanmittauslaitos, aineisto CC BY 4.0',
         minZoom: 1,
         maxZoom: 8,
         errorUrl: '',

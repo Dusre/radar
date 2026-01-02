@@ -1,32 +1,32 @@
 import { CONFIG } from './config.js';
 import { state, layers } from './state.js';
 import { initializeMap } from './map.js';
-import { 
+import {
     setMap as setLayersMap,
-    updateLightning, 
-    updateTemperatureLayer, 
-    updateWindLayer, 
-    updateCloudLayer, 
-    updateHumidityLayer, 
+    updateLightning,
+    updateTemperatureLayer,
+    updateWindLayer,
+    updateCloudLayer,
+    updateHumidityLayer,
     updatePressureLayer,
-    updateRadarLayer 
+    updateRadarLayer
 } from './layers.js';
-import { 
+import {
     setMap as setAnimationsMap,
-    startAnimation, 
-    stopAnimation, 
-    updateHistorySlider 
+    startAnimation,
+    stopAnimation,
+    updateHistorySlider
 } from './animations.js';
-import { 
+import {
     // updateRadarAgeDisplay, 
     // updateLightningAgeDisplay, 
     updateCountdownDisplay,
-    updateTimeDisplay 
+    updateTimeDisplay
 } from './ui-updates.js';
 import { fetchLightningData, fetchAvailableRadarTimes } from './data-fetchers.js';
-import { 
+import {
     setMap as setMeasurementMap,
-    initializeMeasurement 
+    initializeMeasurement
 } from './measurement.js';
 
 // Check that required libraries are loaded
@@ -42,10 +42,10 @@ if (typeof L === 'undefined') {
 
 async function refreshAll() {
     if (state.isAnimating) return;
-    
+
     const now = Date.now();
     state.radarLastUpdateTimestamp = now;
-    
+
     try {
         await Promise.all([
             fetchLightningData(),
@@ -55,10 +55,16 @@ async function refreshAll() {
             updateHumidityLayer(),
             updatePressureLayer()
         ]);
-        
+
         updateLightning();
         updateRadarLayer();
         state.nextRefreshTimestamp = Date.now() + CONFIG.REFRESH_INTERVAL_MS;
+
+        const statusEl = document.getElementById('status');
+        if (statusEl.textContent.includes('Ladataan')) {
+            statusEl.textContent = 'Valmis';
+            statusEl.className = 'status success';
+        }
     } catch (error) {
         console.error('Error in refreshAll:', error);
     }
@@ -66,7 +72,7 @@ async function refreshAll() {
 
 function startAutoRefresh() {
     if (state.refreshInterval) return;
-    
+
     state.refreshInterval = setInterval(refreshAll, CONFIG.REFRESH_INTERVAL_MS);
     state.nextRefreshTimestamp = Date.now() + CONFIG.REFRESH_INTERVAL_MS;
 }
@@ -89,7 +95,7 @@ function loadSettings() {
         showPressure: localStorage.getItem('showPressure') === 'true',
         radarOpacity: parseFloat(localStorage.getItem('radarOpacity')) || 0.7
     };
-    
+
     document.getElementById('lightning-toggle').checked = settings.showLightning;
     document.getElementById('temperature-toggle').checked = settings.showTemperature;
     document.getElementById('wind-toggle').checked = settings.showWind;
@@ -98,9 +104,9 @@ function loadSettings() {
     document.getElementById('pressure-toggle').checked = settings.showPressure;
     document.getElementById('opacity-slider').value = settings.radarOpacity;
     document.getElementById('opacity-value').textContent = Math.round(settings.radarOpacity * 100) + '%';
-    
+
     layers.fmiRadar.setOpacity(settings.radarOpacity);
-    
+
     // Ensure only one layer is active
     const activeToggles = [
         'lightning-toggle',
@@ -110,7 +116,7 @@ function loadSettings() {
         'humidity-toggle',
         'pressure-toggle'
     ].filter(id => document.getElementById(id).checked);
-    
+
     if (activeToggles.length > 1) {
         activeToggles.slice(1).forEach(id => {
             document.getElementById(id).checked = false;
@@ -136,7 +142,7 @@ function setupEventListeners() {
         { id: 'humidity-toggle', key: 'showHumidity', update: updateHumidityLayer },
         { id: 'pressure-toggle', key: 'showPressure', update: updatePressureLayer }
     ];
-    
+
     function setExclusive(activeId) {
         toggleConfigs.forEach(config => {
             const element = document.getElementById(config.id);
@@ -150,7 +156,7 @@ function setupEventListeners() {
             config.update();
         });
     }
-    
+
     toggleConfigs.forEach(config => {
         document.getElementById(config.id).addEventListener('change', (e) => {
             if (e.target.checked) {
@@ -161,35 +167,36 @@ function setupEventListeners() {
             }
         });
     });
-    
+
     // Opacity slider
     const opacitySlider = document.getElementById('opacity-slider');
     const opacityValue = document.getElementById('opacity-value');
-    
+
     opacitySlider.addEventListener('input', (e) => {
         const value = parseFloat(e.target.value);
         layers.fmiRadar.setOpacity(value);
         localStorage.setItem('radarOpacity', value);
         opacityValue.textContent = Math.round(value * 100) + '%';
     });
-    
+
     // History slider
     document.getElementById('history-slider').addEventListener('input', (e) => {
         if (state.isAnimating) stopAnimation();
-        
-        const newStep = parseInt(e.target.value);
+
+        const sliderValue = parseInt(e.target.value);
+        const newStep = CONFIG.MAX_HISTORY_STEPS - sliderValue;
         state.currentHistoryStep = newStep;
-        
+
         if (state.currentHistoryStep === 0) {
             startAutoRefresh();
         } else {
             stopAutoRefresh();
         }
-        
+
         updateRadarLayer();
         updateTimeDisplay();
     });
-    
+
     // Animation button
     document.getElementById('animation-button').addEventListener('click', (e) => {
         e.preventDefault();
@@ -201,33 +208,33 @@ function setupEventListeners() {
             startAnimation();
         }
     });
-    
+
     // Manual refresh button
     document.getElementById('refresh-btn').addEventListener('click', async (e) => {
         const button = e.target.closest('button');
         button.disabled = true;
         button.innerHTML = '<span class="spinner"></span> Päivitetään...';
-        
+
         if (state.isAnimating) {
             stopAnimation();
             await new Promise(resolve => setTimeout(resolve, 200));
         }
-        
+
         state.currentHistoryStep = 0;
-        document.getElementById('history-slider').value = 0;
+        document.getElementById('history-slider').value = CONFIG.MAX_HISTORY_STEPS;
         updateTimeDisplay();
-        
+
         await refreshAll();
         startAutoRefresh();
-        
+
         button.disabled = false;
         button.innerHTML = '<span class="button-icon">⟳</span><span>Päivitä</span>';
     });
-    
+
     // Toggle controls panel
     const controlsPanel = document.querySelector('.controls');
     const toggleBtn = document.getElementById('toggle-controls-btn');
-    
+
     toggleBtn.addEventListener('click', () => {
         controlsPanel.classList.toggle('hidden');
         if (controlsPanel.classList.contains('hidden')) {
@@ -244,26 +251,26 @@ function setupEventListeners() {
 
 async function initialize() {
     console.log('Initializing weather radar application...');
-    
+
     // Initialize map
     const map = initializeMap();
     setLayersMap(map);
     setAnimationsMap(map);
-	setMeasurementMap(map);
-    
+    setMeasurementMap(map);
+
     // Load saved settings
     loadSettings();
-    
+
     // Setup event listeners
     setupEventListeners();
-	
-	// Initialize measurement tool
-	initializeMeasurement();
-    
+
+    // Initialize measurement tool
+    initializeMeasurement();
+
     // Fetch initial data
     await fetchAvailableRadarTimes();
     await refreshAll();
-    
+
     // Update layers based on settings
     await Promise.all([
         updateTemperatureLayer(),
@@ -272,17 +279,17 @@ async function initialize() {
         updateHumidityLayer(),
         updatePressureLayer()
     ]);
-    
+
     updateTimeDisplay();
-    
+
     // Start auto-refresh
     startAutoRefresh();
-    
+
     // Setup periodic updates
     // setInterval(updateRadarAgeDisplay, 1000);
     // setInterval(updateLightningAgeDisplay, 1000);
     setInterval(updateCountdownDisplay, 1000);
     setInterval(fetchAvailableRadarTimes, 10 * 60 * 1000);
-    
+
     console.log('Initialization complete');
 }
