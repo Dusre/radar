@@ -69,6 +69,36 @@ export function getPressureBackground(hpa) {
     }
 }
 
+export function getColorForWind(speed) {
+    // Returns solid color for wind arrow stroke
+    if (speed < 2) return '#88ff88';      // Calm - light green
+    if (speed < 5) return '#44ff44';      // Light breeze - green
+    if (speed < 10) return '#ffff44';     // Moderate - yellow
+    if (speed < 15) return '#ffaa00';     // Fresh - orange
+    if (speed < 20) return '#ff4444';     // Strong - red
+    if (speed < 25) return '#ff00ff';     // Very strong - magenta
+    return '#cc00ff';                      // Storm - purple
+}
+
+export function getWindBackground(speed) {
+    // Returns gradient for wind label background
+    if (speed < 2) {
+        return 'linear-gradient(135deg, #1a3a1a 0%, #0d2a0d 100%)'; // Dark green tint
+    } else if (speed < 5) {
+        return 'linear-gradient(135deg, #2a4a1a 0%, #1a3a0d 100%)'; // Green
+    } else if (speed < 10) {
+        return 'linear-gradient(135deg, #3a3a1a 0%, #2a2a0d 100%)'; // Dark yellow
+    } else if (speed < 15) {
+        return 'linear-gradient(135deg, #3a2a1a 0%, #2a1a0d 100%)'; // Dark orange
+    } else if (speed < 20) {
+        return 'linear-gradient(135deg, #3a1a1a 0%, #2a0d0d 100%)'; // Dark red
+    } else if (speed < 25) {
+        return 'linear-gradient(135deg, #3a1a3a 0%, #2a0d2a 100%)'; // Dark magenta
+    } else {
+        return 'linear-gradient(135deg, #2a1a3a 0%, #1a0d2a 100%)'; // Dark purple
+    }
+}
+
 export function getCloudIcon(coverage) {
     const percentage = (coverage / 8) * 100;
     

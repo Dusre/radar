@@ -1,6 +1,17 @@
 import { state, layers } from './state.js';
 import { CONFIG } from './config.js';
-import { formatTime, getColorForTemperature, getColorForHumidity, getColorForPressure, getCloudIcon, degreesToCardinal, getTemperatureExtreme, getPressureBackground } from './utils.js';
+import { 
+    formatTime, 
+    getColorForTemperature, 
+    getColorForHumidity, 
+    getColorForPressure, 
+    getCloudIcon, 
+    degreesToCardinal, 
+    getTemperatureExtreme, 
+    getPressureBackground,
+    getColorForWind,
+    getWindBackground
+} from './utils.js';
 import { fetchWeatherParameter, fetchWindData } from './data-fetchers.js';
 
 let map = null;
@@ -101,16 +112,15 @@ export async function updateWindLayer() {
     if (!isVisible) {
         if (map.hasLayer(layers.wind)) {
             map.removeLayer(layers.wind);
-		}
+        }
         layers.wind.clearLayers();
         state.windStationCount = 0;
-        // document.getElementById('wind-count').textContent = '0';
         return;
-	}
+    }
     
     if (!map.hasLayer(layers.wind)) {
         map.addLayer(layers.wind);
-	}
+    }
     
     const status = document.getElementById('status');
     const originalText = status.textContent;
@@ -124,50 +134,52 @@ export async function updateWindLayer() {
     data.forEach(obs => {
         const speed = Math.max(0, Math.min(60, obs.speed));
         const direction = ((obs.direction % 360) + 360) % 360;
-        const length = 10 + Math.min(speed, 15); // Longer arrow
-		const svgWidth = 16; // Increased from smaller values
-		const svgHeight = length + 10;
+        const length = 10 + Math.min(speed, 15);
+        const svgWidth = 16;
+        const svgHeight = length + 10;
+        
+        // Get colors based on wind speed
+        const arrowColor = getColorForWind(speed);
+        const labelBackground = getWindBackground(speed);
         
         const arrowSVG = `
-		<svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">
+        <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">
         <defs>
-		<filter id="shadow${state.windStationCount}" x="-50%" y="-50%" width="200%" height="200%">
-		<feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#000" flood-opacity="0.6"/>
-		</filter>
+        <filter id="shadow${state.windStationCount}" x="-50%" y="-50%" width="200%" height="200%">
+        <feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#000" flood-opacity="0.6"/>
+        </filter>
         </defs>
-        <g filter="url(#shadow${state.windStationCount})" stroke="#00ff00" stroke-width="2.5" stroke-linecap="round" fill="none">
-		<line x1="${svgWidth/2}" y1="${svgHeight-2}" x2="${svgWidth/2}" y2="${svgHeight-length}" />
-		<path d="M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 - 4} ${svgHeight-length + 8} M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 + 4} ${svgHeight-length + 8}" />
+        <g filter="url(#shadow${state.windStationCount})" stroke="${arrowColor}" stroke-width="2.5" stroke-linecap="round" fill="none">
+        <line x1="${svgWidth/2}" y1="${svgHeight-2}" x2="${svgWidth/2}" y2="${svgHeight-length}" />
+        <path d="M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 - 4} ${svgHeight-length + 8} M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 + 4} ${svgHeight-length + 8}" />
         </g>
-		</svg>`;
+        </svg>`;
         
-        // In the wind layer creation, update the icon creation:
-		const marker = L.marker([obs.lat, obs.lng], {
-			icon: L.divIcon({
-				className: 'wind-icon',
-				html: `<div style="transform: rotate(${direction}deg);">${arrowSVG}</div>
-				<div>${speed.toFixed(1)} m/s</div>`,
-				iconSize: null, // Let CSS handle sizing
-				iconAnchor: [0, 0] // Centered by default
-			})
-		});
+        const marker = L.marker([obs.lat, obs.lng], {
+            icon: L.divIcon({
+                className: 'wind-icon',
+                html: `<div style="transform: rotate(${(direction + 180) % 360}deg);">${arrowSVG}</div>
+                <div class="wind-speed-label" style="background: ${labelBackground}; color: ${arrowColor}; border: 1px solid ${arrowColor}40;">${speed.toFixed(1)} m/s</div>`,
+                iconSize: null,
+                iconAnchor: [0, 0]
+            })
+        });
         
         const ageMinutes = Math.round((Date.now() - new Date(obs.time).getTime()) / 60000);
         const popupContent = `
-		<strong>Tuuli</strong><br>
-		Asema: ${obs.stationName}<br>
-		Nopeus: <strong>${speed.toFixed(1)} m/s</strong><br>
-		Suunta: ${Math.round(direction)}° (${degreesToCardinal(direction)})<br>
-		Aika: ${formatTime(new Date(obs.time))}<br>
-		Ikä: ${ageMinutes} minuuttia sitten
+        <strong>Tuuli</strong><br>
+        Asema: ${obs.stationName}<br>
+        Nopeus: <strong style="color: ${arrowColor};">${speed.toFixed(1)} m/s</strong><br>
+        Suunta: ${Math.round(direction)}° (${degreesToCardinal(direction)})<br>
+        Aika: ${formatTime(new Date(obs.time))}<br>
+        Ikä: ${ageMinutes} minuuttia sitten
         `;
         
         marker.bindPopup(popupContent, { className: 'dark-popup' });
         layers.wind.addLayer(marker);
         state.windStationCount++;
-	});
+    });
     
-    // document.getElementById('wind-count').textContent = state.windStationCount.toString();
     status.textContent = originalText;
     status.className = 'status success';
 }
