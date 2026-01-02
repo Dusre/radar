@@ -70,33 +70,25 @@ export function getPressureBackground(hpa) {
 }
 
 export function getColorForWind(speed) {
-    // Returns solid color for wind arrow stroke
-    if (speed < 2) return '#88ff88';      // Calm - light green
-    if (speed < 5) return '#44ff44';      // Light breeze - green
-    if (speed < 10) return '#ffff44';     // Moderate - yellow
-    if (speed < 15) return '#ffaa00';     // Fresh - orange
-    if (speed < 20) return '#ff4444';     // Strong - red
-    if (speed < 25) return '#ff00ff';     // Very strong - magenta
-    return '#cc00ff';                      // Storm - purple
+    // Returns vibrant gradient background
+    if (speed < 2) return 'linear-gradient(135deg, #004d00, #006600)';      // Calm - green
+    if (speed < 5) return 'linear-gradient(135deg, #006600, #00b300)';      // Light breeze - brighter green
+    if (speed < 10) return 'linear-gradient(135deg, #b3b300, #e6e600)';     // Moderate - yellow
+    if (speed < 15) return 'linear-gradient(135deg, #cc6600, #ff8000)';     // Fresh - orange
+    if (speed < 20) return 'linear-gradient(135deg, #b30000, #ff0000)';     // Strong - red
+    if (speed < 25) return 'linear-gradient(135deg, #b300b3, #ff00ff)';     // Very strong - magenta
+    return 'linear-gradient(135deg, #6600cc, #9933ff)';                      // Storm - purple
 }
 
-export function getWindBackground(speed) {
-    // Returns gradient for wind label background
-    if (speed < 2) {
-        return 'linear-gradient(135deg, #1a3a1a 0%, #0d2a0d 100%)'; // Dark green tint
-    } else if (speed < 5) {
-        return 'linear-gradient(135deg, #2a4a1a 0%, #1a3a0d 100%)'; // Green
-    } else if (speed < 10) {
-        return 'linear-gradient(135deg, #3a3a1a 0%, #2a2a0d 100%)'; // Dark yellow
-    } else if (speed < 15) {
-        return 'linear-gradient(135deg, #3a2a1a 0%, #2a1a0d 100%)'; // Dark orange
-    } else if (speed < 20) {
-        return 'linear-gradient(135deg, #3a1a1a 0%, #2a0d0d 100%)'; // Dark red
-    } else if (speed < 25) {
-        return 'linear-gradient(135deg, #3a1a3a 0%, #2a0d2a 100%)'; // Dark magenta
-    } else {
-        return 'linear-gradient(135deg, #2a1a3a 0%, #1a0d2a 100%)'; // Dark purple
-    }
+export function getWindArrowColor(speed) {
+    // Returns vibrant solid color for arrow stroke
+    if (speed < 2) return '#00ff00';      // Calm - bright green
+    if (speed < 5) return '#33ff33';      // Light breeze - green
+    if (speed < 10) return '#ffff00';     // Moderate - yellow
+    if (speed < 15) return '#ff9900';     // Fresh - orange
+    if (speed < 20) return '#ff0000';     // Strong - red
+    if (speed < 25) return '#ff00ff';     // Very strong - magenta
+    return '#cc33ff';                      // Storm - purple
 }
 
 export function getCloudIcon(coverage) {

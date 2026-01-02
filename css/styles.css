@@ -658,6 +658,29 @@ input:focus-visible {
     filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
 }
 
+.wind-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: auto;
+}
+
+.wind-label > div:last-child {
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.9);
+    white-space: nowrap;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.wind-arrow {
+    margin-bottom: 1px;
+}
+
 .wind-icon svg {
     width: 16px !important;  
     height: 20px !important;

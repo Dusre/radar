@@ -10,7 +10,7 @@ import {
     getTemperatureExtreme, 
     getPressureBackground,
     getColorForWind,
-    getWindBackground
+    getWindArrowColor
 } from './utils.js';
 import { fetchWeatherParameter, fetchWindData } from './data-fetchers.js';
 
@@ -139,8 +139,8 @@ export async function updateWindLayer() {
         const svgHeight = length + 10;
         
         // Get colors based on wind speed
-        const arrowColor = getColorForWind(speed);
-        const labelBackground = getWindBackground(speed);
+        const arrowColor = getWindArrowColor(speed);
+        const bgColor = getColorForWind(speed);
         
         const arrowSVG = `
         <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">
@@ -157,9 +157,11 @@ export async function updateWindLayer() {
         
         const marker = L.marker([obs.lat, obs.lng], {
             icon: L.divIcon({
-                className: 'wind-icon',
-                html: `<div style="transform: rotate(${(direction + 180) % 360}deg);">${arrowSVG}</div>
-                <div class="wind-speed-label" style="background: ${labelBackground}; color: ${arrowColor}; border: 1px solid ${arrowColor}40;">${speed.toFixed(1)} m/s</div>`,
+                className: 'wind-label',
+                html: `
+                    <div class="wind-arrow" style="transform: rotate(${(direction + 180) % 360}deg);">${arrowSVG}</div>
+                    <div style="background: ${bgColor};">${speed.toFixed(1)} m/s</div>
+                `,
                 iconSize: null,
                 iconAnchor: [0, 0]
             })
@@ -167,12 +169,14 @@ export async function updateWindLayer() {
         
         const ageMinutes = Math.round((Date.now() - new Date(obs.time).getTime()) / 60000);
         const popupContent = `
-        <strong>Tuuli</strong><br>
-        Asema: ${obs.stationName}<br>
-        Nopeus: <strong style="color: ${arrowColor};">${speed.toFixed(1)} m/s</strong><br>
-        Suunta: ${Math.round(direction)}° (${degreesToCardinal(direction)})<br>
-        Aika: ${formatTime(new Date(obs.time))}<br>
-        Ikä: ${ageMinutes} minuuttia sitten
+        <strong>🌬️ Tuuli</strong><br>
+        <div style="margin-top: 8px;">
+        📍 <strong>${obs.stationName}</strong><br>
+        💨 Nopeus: <strong style="color: #4db8ff;">${speed.toFixed(1)} m/s</strong><br>
+        🧭 Suunta: ${Math.round(direction)}° (${degreesToCardinal(direction)})<br>
+        ⏰ Aika: ${formatTime(new Date(obs.time))}<br>
+        ⏱️ Ikä: ${ageMinutes} minuuttia sitten
+        </div>
         `;
         
         marker.bindPopup(popupContent, { className: 'dark-popup' });
@@ -183,6 +187,7 @@ export async function updateWindLayer() {
     status.textContent = originalText;
     status.className = 'status success';
 }
+
 
 export async function updateCloudLayer() {
     const isVisible = document.getElementById('clouds-toggle').checked;
