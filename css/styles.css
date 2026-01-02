@@ -686,6 +686,21 @@ input:focus-visible {
     height: 20px !important;
 }
 
+/* Add to your main CSS file */
+.leaflet-marker-pane {
+    will-change: transform;
+}
+
+.leaflet-overlay-pane svg {
+    shape-rendering: optimizeSpeed;
+}
+
+/* Disable expensive effects on wind layer */
+.wind-label * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
 .wind-icon > div:last-child {
     display: inline-block !important;
     margin-top: 2px !important;
