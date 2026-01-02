@@ -134,24 +134,24 @@ export async function updateWindLayer() {
     data.forEach(obs => {
         const speed = Math.max(0, Math.min(60, obs.speed));
         const direction = ((obs.direction % 360) + 360) % 360;
+        const length = 10 + Math.min(speed, 15);
+        const svgWidth = 16;
+        const svgHeight = length + 10;
         
-        const length = 8 + Math.min(speed, 12);
-        const svgWidth = 12;
-        const svgHeight = length + 6;
-        
+        // Get colors based on wind speed
         const arrowColor = getWindArrowColor(speed);
         const bgColor = getColorForWind(speed);
         
-        // Double-stroke arrow - looks like shadow but fast!
         const arrowSVG = `
         <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">
-        <g stroke="#000" stroke-width="4" stroke-linecap="round" fill="none">
+        <defs>
+        <filter id="shadow${state.windStationCount}" x="-50%" y="-50%" width="200%" height="200%">
+        <feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#000" flood-opacity="0.6"/>
+        </filter>
+        </defs>
+        <g filter="url(#shadow${state.windStationCount})" stroke="${arrowColor}" stroke-width="2.5" stroke-linecap="round" fill="none">
         <line x1="${svgWidth/2}" y1="${svgHeight-2}" x2="${svgWidth/2}" y2="${svgHeight-length}" />
-        <path d="M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 - 3} ${svgHeight-length + 6} M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 + 3} ${svgHeight-length + 6}" />
-        </g>
-        <g stroke="${arrowColor}" stroke-width="2" stroke-linecap="round" fill="none">
-        <line x1="${svgWidth/2}" y1="${svgHeight-2}" x2="${svgWidth/2}" y2="${svgHeight-length}" />
-        <path d="M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 - 3} ${svgHeight-length + 6} M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 + 3} ${svgHeight-length + 6}" />
+        <path d="M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 - 4} ${svgHeight-length + 8} M ${svgWidth/2} ${svgHeight-length} L ${svgWidth/2 + 4} ${svgHeight-length + 8}" />
         </g>
         </svg>`;
         
