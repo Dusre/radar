@@ -77,7 +77,7 @@ export async function updateTemperatureLayer() {
 
         const label = L.marker([station.lat, station.lng], {
             icon: L.divIcon({
-                className: 'temp-label' + (extreme ? ` temp-label[data-extreme="${extreme}"]` : ''),
+                className: 'temp-label' + (extreme ? ` temp-label--${extreme}` : ''),
                 html: `<div style="background: ${bgColor};">${station.value.toFixed(0)}°C</div>`,
                 iconSize: null, // Let CSS handle sizing
                 iconAnchor: [0, 0] // Will be adjusted by CSS transform
@@ -374,36 +374,67 @@ export async function updatePressureLayer() {
     }
 }
 
-export function updateRadarLayer() {
-    const historicalTime = getHistoricalRadarTime();
-    const params = {
-        layers: 'Radar:suomi_dbz_eureffin',
-        format: 'image/png',
-        transparent: true,
-        _cacheBust: Date.now()
-    };
+/**
+ * Rewrites the radar layer's WMS params in place for the given time
+ * (null = live). Historical frames never change, so they get no cache-buster
+ * and can be served from the browser cache. Live frames get one; during
+ * animation it stays constant so preloaded tiles match what is drawn.
+ */
+function applyRadarParams(time) {
+    const p = layers.fmiRadar.wmsParams;
+    delete p.time;
+    delete p._cacheBust;
 
-    if (historicalTime) {
-        params.time = historicalTime.toISOString();
+    if (time) {
+        p.time = time.toISOString();
     } else {
-        if (layers.fmiRadar.wmsParams) {
-            delete layers.fmiRadar.wmsParams.time;
-        }
+        p._cacheBust = state.isAnimating && state.animationCacheBust
+            ? state.animationCacheBust
+            : Date.now();
     }
-
-    layers.fmiRadar.setParams(params);
 }
 
-function getHistoricalRadarTime() {
-    if (state.currentHistoryStep === 0) return null;
-    if (state.availableRadarTimes.length > state.currentHistoryStep) {
-        return state.availableRadarTimes[state.currentHistoryStep];
+export function updateRadarLayer() {
+    applyRadarParams(getHistoricalRadarTime());
+    layers.fmiRadar.setParams({}); // params already applied; this triggers the redraw
+}
+
+/**
+ * Returns the tile URLs the radar layer would request for the given history
+ * step at the current map view, without changing what is displayed.
+ */
+export function getRadarTileUrls(step) {
+    const layer = layers.fmiRadar;
+    const snapshot = { ...layer.wmsParams };
+
+    applyRadarParams(step === 0 ? null : getRadarTimeForStep(step));
+
+    const urls = Object.values(layer._tiles || {})
+        .map(tile => tile.coords)
+        .filter(coords => coords && coords.z === layer._tileZoom)
+        .map(coords => layer.getTileUrl(coords));
+
+    // Restore the params exactly as they were (including key order)
+    Object.keys(layer.wmsParams).forEach(k => delete layer.wmsParams[k]);
+    Object.assign(layer.wmsParams, snapshot);
+
+    return urls;
+}
+
+export function getRadarTimeForStep(step) {
+    if (step === 0) return null;
+    if (state.availableRadarTimes.length > step) {
+        return state.availableRadarTimes[step];
     }
 
-    const minutesAgo = state.currentHistoryStep * CONFIG.HISTORY_STEP_MINUTES;
+    const minutesAgo = step * CONFIG.HISTORY_STEP_MINUTES;
     const time = new Date(Date.now() - minutesAgo * 60 * 1000);
     time.setMinutes(Math.floor(time.getMinutes() / 5) * 5);
     time.setSeconds(0);
     time.setMilliseconds(0);
     return time;
+}
+
+function getHistoricalRadarTime() {
+    return getRadarTimeForStep(state.currentHistoryStep);
 }

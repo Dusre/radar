@@ -6,6 +6,7 @@ export const state = {
     currentHistoryStep: 0,
     isAnimating: false,
     animationInterval: null,
+    animationCacheBust: null,
     preloadedImages: new Map(),
     refreshInterval: null,
     temperatureStationCount: 0,

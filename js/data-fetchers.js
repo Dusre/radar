@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from './utils.js';
 import { state } from './state.js';
+import { CONFIG } from './config.js';
 
 export async function fetchLightningData() {
     const statusEl = document.getElementById('status');
@@ -211,34 +212,86 @@ export async function fetchWindData() {
     );
 }
 
+const RADAR_LAYER_NAME = 'Radar:suomi_dbz_eureffin';
+
+// Minimal ISO-8601 duration parser (e.g. PT5M, PT1H, P1D) -> milliseconds
+function parseIsoDuration(str) {
+    const m = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec((str || '').trim());
+    if (!m) return null;
+    const [, d = 0, h = 0, min = 0, s = 0] = m;
+    const ms = (((+d * 24 + +h) * 60 + +min) * 60 + +s) * 1000;
+    return ms > 0 ? ms : null;
+}
+
+// WMS 1.1.1 puts time values in <Extent name="time">, 1.3.0 in <Dimension name="time">.
+// Values may be inherited from a parent <Layer>, so walk up the tree.
+function findTimeValue(layerEl) {
+    for (let el = layerEl; el; el = el.parentElement) {
+        if (el.localName !== 'Layer') continue;
+        const node = Array.from(el.children).find(c =>
+            (c.localName === 'Extent' || c.localName === 'Dimension') &&
+            c.getAttribute('name') === 'time' &&
+            c.textContent.trim()
+        );
+        if (node) return node.textContent.trim();
+    }
+    return null;
+}
+
+function buildRadarTimes(endTime, stepMs, startTime = null) {
+    const times = [];
+    for (let i = 0; i <= CONFIG.MAX_HISTORY_STEPS; i++) {
+        const t = new Date(endTime.getTime() - i * stepMs);
+        if (startTime && t < startTime) break;
+        times.push(t);
+    }
+    return times;
+}
+
 export async function fetchAvailableRadarTimes() {
     try {
         const capabilitiesUrl = 'https://openwms.fmi.fi/geoserver/Radar/wms?service=WMS&version=1.1.1&request=GetCapabilities';
         const response = await fetchWithTimeout(capabilitiesUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const text = await response.text();
-        
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(text, 'text/xml');
-        
-        const dimensions = xmlDoc.querySelectorAll('Dimension[name="time"], dimension[name="time"]');
-        for (let dim of dimensions) {
-            const timeContent = dim.textContent.trim();
-            if (timeContent.includes('/')) {
-                const parts = timeContent.split('/');
-                if (parts.length >= 2) {
-                    const endTime = new Date(parts[1]);
-                    const times = [];
-                    
-                    for (let i = 0; i <= 12; i++) {
-                        const time = new Date(endTime.getTime() - (i * 5 * 60 * 1000));
-                        times.push(time);
-                    }
-                    state.availableRadarTimes = times;
-                    return;
+
+        const xmlDoc = new DOMParser().parseFromString(text, 'text/xml');
+        if (xmlDoc.querySelector('parsererror')) throw new Error('XML parsing error');
+
+        const layerEl = Array.from(xmlDoc.querySelectorAll('Layer')).find(l => {
+            const nameEl = Array.from(l.children).find(c => c.localName === 'Name');
+            return nameEl && nameEl.textContent.trim() === RADAR_LAYER_NAME;
+        });
+
+        const timeValue = layerEl ? findTimeValue(layerEl) : null;
+        if (timeValue) {
+            let times = null;
+
+            if (timeValue.includes('/')) {
+                // "start/end/period" (possibly several comma-separated ranges; use the last)
+                const range = timeValue.split(',').pop().trim();
+                const [startStr, endStr, periodStr] = range.split('/');
+                const end = new Date(endStr);
+                const start = new Date(startStr);
+                const stepMs = parseIsoDuration(periodStr) || CONFIG.HISTORY_STEP_MINUTES * 60 * 1000;
+                if (!isNaN(end)) {
+                    times = buildRadarTimes(end, stepMs, isNaN(start) ? null : start);
                 }
+            } else {
+                // Explicit list of timestamps
+                const list = timeValue.split(',')
+                    .map(t => new Date(t.trim()))
+                    .filter(t => !isNaN(t))
+                    .sort((a, b) => b - a);
+                if (list.length) times = list.slice(0, CONFIG.MAX_HISTORY_STEPS + 1);
+            }
+
+            if (times && times.length) {
+                state.availableRadarTimes = times;
+                return;
             }
         }
-        
+
         generateFallbackRadarTimes();
     } catch (error) {
         console.warn('Could not fetch radar capabilities:', error);
@@ -247,16 +300,8 @@ export async function fetchAvailableRadarTimes() {
 }
 
 function generateFallbackRadarTimes() {
+    const stepMs = CONFIG.HISTORY_STEP_MINUTES * 60 * 1000;
     const now = new Date();
-    const roundedNow = new Date(now);
-    roundedNow.setMinutes(Math.floor(now.getMinutes() / 5) * 5);
-    roundedNow.setSeconds(0);
-    roundedNow.setMilliseconds(0);
-    
-    const times = [];
-    for (let i = 0; i <= 12; i++) {
-        const time = new Date(roundedNow.getTime() - (i * 5 * 60 * 1000));
-        times.push(time);
-    }
-    state.availableRadarTimes = times;
+    const roundedNow = new Date(Math.floor(now.getTime() / stepMs) * stepMs);
+    state.availableRadarTimes = buildRadarTimes(roundedNow, stepMs);
 }
