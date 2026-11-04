@@ -24,6 +24,7 @@ import {
     updateTimeDisplay
 } from './ui-updates.js';
 import { fetchLightningData, fetchAvailableRadarTimes } from './data-fetchers.js';
+import { debounce } from './utils.js';
 import {
     setMap as setMeasurementMap,
     initializeMeasurement
@@ -40,8 +41,11 @@ if (typeof L === 'undefined') {
     initialize();
 }
 
+let isRefreshing = false;
+
 async function refreshAll() {
-    if (state.isAnimating) return;
+    if (state.isAnimating || isRefreshing) return;
+    isRefreshing = true;
 
     const now = Date.now();
     state.radarLastUpdateTimestamp = now;
@@ -67,6 +71,8 @@ async function refreshAll() {
         }
     } catch (error) {
         console.error('Error in refreshAll:', error);
+    } finally {
+        isRefreshing = false;
     }
 }
 
@@ -133,6 +139,9 @@ function loadSettings() {
 }
 
 function setupEventListeners() {
+    // Redrawing the WMS layer on every slider tick is wasteful; wait for the drag to settle
+    const debouncedRadarUpdate = debounce(updateRadarLayer, 150);
+
     // Toggle configurations
     const toggleConfigs = [
         { id: 'lightning-toggle', key: 'showLightning', update: updateLightning },
@@ -193,7 +202,7 @@ function setupEventListeners() {
             stopAutoRefresh();
         }
 
-        updateRadarLayer();
+        debouncedRadarUpdate();
         updateTimeDisplay();
     });
 
@@ -249,6 +258,27 @@ function setupEventListeners() {
     });
 }
 
+// Pause auto-refresh while the tab is hidden; catch up once when it returns
+let pausedByVisibility = false;
+
+function setupVisibilityHandling() {
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (state.refreshInterval) {
+                stopAutoRefresh();
+                pausedByVisibility = true;
+            }
+        } else if (pausedByVisibility) {
+            pausedByVisibility = false;
+            // Only resume if we're still on the live view and not animating
+            if (state.currentHistoryStep === 0 && !state.isAnimating) {
+                refreshAll();
+                startAutoRefresh();
+            }
+        }
+    });
+}
+
 async function initialize() {
     console.log('Initializing weather radar application...');
 
@@ -271,15 +301,6 @@ async function initialize() {
     await fetchAvailableRadarTimes();
     await refreshAll();
 
-    // Update layers based on settings
-    await Promise.all([
-        updateTemperatureLayer(),
-        updateWindLayer(),
-        updateCloudLayer(),
-        updateHumidityLayer(),
-        updatePressureLayer()
-    ]);
-
     updateTimeDisplay();
 
     // Start auto-refresh
@@ -290,6 +311,8 @@ async function initialize() {
     // setInterval(updateLightningAgeDisplay, 1000);
     setInterval(updateCountdownDisplay, 1000);
     setInterval(fetchAvailableRadarTimes, 10 * 60 * 1000);
+
+    setupVisibilityHandling();
 
     console.log('Initialization complete');
 }
