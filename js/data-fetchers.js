@@ -298,3 +298,74 @@ function generateFallbackRadarTimes() {
     const roundedNow = new Date(Math.floor(now.getTime() / stepMs) * stepMs);
     state.availableRadarTimes = buildRadarTimes(roundedNow, stepMs);
 }
+
+// ---------------------------------------------------------------------------
+// Point forecast (HARMONIE model) for a single location
+// ---------------------------------------------------------------------------
+
+const FORECAST_PARAMS = ['Precipitation1h', 'Temperature', 'WindSpeedMS', 'WindDirection', 'TotalCloudCover', 'SmartSymbol'];
+
+export async function fetchPointForecast(lat, lng, hours = 24) {
+    const start = new Date();
+    start.setMinutes(0, 0, 0);
+    const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+
+    const url = 'https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature' +
+        '&storedquery_id=fmi::forecast::harmonie::surface::point::timevaluepair' +
+        `&latlon=${lat.toFixed(4)},${lng.toFixed(4)}` +
+        `&parameters=${FORECAST_PARAMS.join(',')}` +
+        '&timestep=60' +
+        `&starttime=${start.toISOString()}&endtime=${end.toISOString()}`;
+
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const xmlDoc = new DOMParser().parseFromString(await response.text(), 'text/xml');
+    if (xmlDoc.querySelector('parsererror')) throw new Error('XML parsing error');
+    if (xmlDoc.querySelector('ExceptionText')) {
+        throw new Error(xmlDoc.querySelector('ExceptionText').textContent.trim().slice(0, 120));
+    }
+    return { series: parseForecastXML(xmlDoc), place: parseForecastPlace(xmlDoc) };
+}
+
+// Location name of the forecast point (e.g. "Hietana"); prefers the FMI location-name
+// code space, otherwise the first non-numeric <gml:name>
+function parseForecastPlace(xmlDoc) {
+    const preferred = xmlDoc.querySelector(
+        'gml\\:name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"], name[codeSpace="http://xml.fmi.fi/namespace/locationcode/name"]'
+    );
+    if (preferred && preferred.textContent.trim()) return preferred.textContent.trim();
+
+    for (const el of xmlDoc.querySelectorAll('gml\\:name, name')) {
+        const text = el.textContent.trim();
+        if (text && isNaN(Number(text))) return text;
+    }
+    return null;
+}
+
+// Series: { Precipitation1h: [{time, value}], Temperature: [...], WindSpeedMS: [...], TotalCloudCover: [...], SmartSymbol: [...] }
+function parseForecastXML(xmlDoc) {
+    const series = {};
+
+    xmlDoc.querySelectorAll('wfs\\:member, member').forEach(member => {
+        const ts = member.querySelector('wml2\\:MeasurementTimeseries, MeasurementTimeseries');
+        const prop = member.querySelector('om\\:observedProperty, observedProperty');
+        const hint = `${ts ? ts.getAttribute('gml:id') || '' : ''} ${prop ? prop.getAttribute('xlink:href') || '' : ''}`.toLowerCase();
+        const name = FORECAST_PARAMS.find(n => hint.includes(n.toLowerCase()));
+        if (!name) return;
+
+        const points = [];
+        member.querySelectorAll('wml2\\:MeasurementTVP, MeasurementTVP').forEach(tvp => {
+            const timeEl = tvp.querySelector('wml2\\:time, time');
+            const valueEl = tvp.querySelector('wml2\\:value, value');
+            if (!timeEl || !valueEl) return;
+            const value = parseFloat(valueEl.textContent.trim());
+            const time = new Date(timeEl.textContent.trim());
+            if (isNaN(value) || isNaN(time)) return;
+            points.push({ time, value });
+        });
+        series[name] = points;
+    });
+
+    return series;
+}

@@ -150,6 +150,10 @@ function handleMapClick(e) {
     addMeasurementPoint(e.latlng);
 }
 
+export function isMeasurementActive() {
+    return measurementState.isActive;
+}
+
 export function clearMeasurement() {
     // Remove all markers
     measurementState.markers.forEach(marker => {

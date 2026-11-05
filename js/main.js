@@ -27,6 +27,10 @@ import {
     setMap as setMeasurementMap,
     initializeMeasurement
 } from './measurement.js';
+import {
+    setMap as setForecastMap,
+    initializeForecast
+} from './forecast.js';
 
 // Check that required libraries are loaded (Leaflet itself is an ES module import now)
 if (typeof proj4 === 'undefined') {
@@ -286,6 +290,7 @@ async function initialize() {
     const map = initializeMap();
     setLayersMap(map);
     setMeasurementMap(map);
+    setForecastMap(map);
 
     // Load saved settings
     loadSettings();
@@ -295,6 +300,9 @@ async function initialize() {
 
     // Initialize measurement tool
     initializeMeasurement();
+
+    // Initialize click-for-forecast tool
+    initializeForecast();
 
     // Fetch initial data
     await fetchAvailableRadarTimes();
