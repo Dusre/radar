@@ -1,7 +1,5 @@
 export const state = {
     lightningData: { type: "FeatureCollection", features: [] },
-    newestStrikeTimestamp: null,
-    radarLastUpdateTimestamp: null,
     nextRefreshTimestamp: null,
     currentHistoryStep: 0,
     isAnimating: false,
@@ -9,9 +7,6 @@ export const state = {
     animationCacheBust: null,
     preloadedImages: new Map(),
     refreshInterval: null,
-    temperatureStationCount: 0,
-    windStationCount: 0,
-    cloudStationCount: 0,
     availableRadarTimes: []
 };
 

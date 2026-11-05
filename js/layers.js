@@ -26,7 +26,6 @@ export function updateLightning() {
     const toggle = document.getElementById('lightning-toggle');
 
     if (!toggle || !toggle.checked) {
-        // document.getElementById('lightning-count').textContent = '0';
         return;
     }
 
@@ -40,7 +39,6 @@ export function updateLightning() {
         features: visibleFeatures
     });
 
-    // document.getElementById('lightning-count').textContent = visibleFeatures.length.toString();
 }
 
 export async function updateTemperatureLayer() {
@@ -51,8 +49,6 @@ export async function updateTemperatureLayer() {
             map.removeLayer(layers.temperature);
         }
         layers.temperature.clearLayers();
-        state.temperatureStationCount = 0;
-        // document.getElementById('temp-count').textContent = '0';
         return;
     }
 
@@ -68,7 +64,6 @@ export async function updateTemperatureLayer() {
     const tempData = await fetchWeatherParameter('temperature');
 
     layers.temperature.clearLayers();
-    state.temperatureStationCount = 0;
 
     tempData.forEach(station => {
         if (station.value < -50 || station.value > 50) return;
@@ -99,14 +94,12 @@ export async function updateTemperatureLayer() {
 
         label.bindPopup(popupContent, { className: 'dark-popup' });
         layers.temperature.addLayer(label);
-        state.temperatureStationCount++;
     });
 
     if (status.textContent === 'Ladataan lämpötiloja...') {
         status.textContent = (!originalText || originalText.includes('Ladataan')) ? 'Valmis' : originalText;
         status.className = 'status success';
     }
-    // document.getElementById('temp-count').textContent = state.temperatureStationCount;
 }
 
 export async function updateWindLayer() {
@@ -117,7 +110,6 @@ export async function updateWindLayer() {
             map.removeLayer(layers.wind);
         }
         layers.wind.clearLayers();
-        state.windStationCount = 0;
         return;
     }
 
@@ -132,7 +124,6 @@ export async function updateWindLayer() {
 
     const data = await fetchWindData();
     layers.wind.clearLayers();
-    state.windStationCount = 0;
 
     data.forEach(obs => {
         const speed = Math.max(0, Math.min(60, obs.speed));
@@ -184,7 +175,6 @@ export async function updateWindLayer() {
 
         marker.bindPopup(popupContent, { className: 'dark-popup' });
         layers.wind.addLayer(marker);
-        state.windStationCount++;
     });
 
     if (status.textContent === 'Ladataan tuulta...') {
@@ -202,8 +192,6 @@ export async function updateCloudLayer() {
             map.removeLayer(layers.clouds);
         }
         layers.clouds.clearLayers();
-        state.cloudStationCount = 0;
-        // document.getElementById('cloud-count').textContent = '0';
         return;
     }
 
@@ -219,7 +207,6 @@ export async function updateCloudLayer() {
     const cloudData = await fetchWeatherParameter('n_man');
 
     layers.clouds.clearLayers();
-    state.cloudStationCount = 0;
 
     cloudData.forEach(station => {
         const coverage = Math.round(station.value);
@@ -255,14 +242,12 @@ export async function updateCloudLayer() {
 
         marker.bindPopup(popupContent, { className: 'dark-popup' });
         layers.clouds.addLayer(marker);
-        state.cloudStationCount++;
     });
 
     if (status.textContent === 'Ladataan pilvisyyttä...') {
         status.textContent = (!originalText || originalText.includes('Ladataan')) ? 'Valmis' : originalText;
         status.className = 'status success';
     }
-    // document.getElementById('cloud-count').textContent = state.cloudStationCount;
 }
 
 export async function updateHumidityLayer() {

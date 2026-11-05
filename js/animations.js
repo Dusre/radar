@@ -1,14 +1,8 @@
 import { state } from './state.js';
 import { CONFIG } from './config.js';
-import { updateRadarLayer, updateTimeDisplay } from './ui-updates.js';
-import { getRadarTileUrls } from './layers.js';
+import { updateTimeDisplay } from './ui-updates.js';
+import { updateRadarLayer, getRadarTileUrls } from './layers.js';
 import { stopAutoRefresh } from './main.js';
-
-let map = null;
-
-export function setMap(mapInstance) {
-    map = mapInstance;
-}
 
 export async function preloadRadarImages() {
     state.preloadedImages.clear();

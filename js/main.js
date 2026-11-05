@@ -13,14 +13,11 @@ import {
     setRadarOpacity
 } from './layers.js';
 import {
-    setMap as setAnimationsMap,
     startAnimation,
     stopAnimation,
     updateHistorySlider
 } from './animations.js';
 import {
-    // updateRadarAgeDisplay, 
-    // updateLightningAgeDisplay, 
     updateCountdownDisplay,
     updateTimeDisplay
 } from './ui-updates.js';
@@ -44,16 +41,21 @@ if (typeof L === 'undefined') {
 
 let isRefreshing = false;
 
+const isLightningOn = () => document.getElementById('lightning-toggle').checked;
+
+// Lightning data is only fetched while the layer is visible
+async function refreshLightning() {
+    if (isLightningOn()) await fetchLightningData();
+    updateLightning();
+}
+
 async function refreshAll() {
     if (state.isAnimating || isRefreshing) return;
     isRefreshing = true;
 
-    const now = Date.now();
-    state.radarLastUpdateTimestamp = now;
-
     try {
         await Promise.all([
-            fetchLightningData(),
+            isLightningOn() && fetchLightningData(),
             updateTemperatureLayer(),
             updateWindLayer(),
             updateCloudLayer(),
@@ -145,7 +147,7 @@ function setupEventListeners() {
 
     // Toggle configurations
     const toggleConfigs = [
-        { id: 'lightning-toggle', key: 'showLightning', update: updateLightning },
+        { id: 'lightning-toggle', key: 'showLightning', update: refreshLightning },
         { id: 'temperature-toggle', key: 'showTemperature', update: updateTemperatureLayer },
         { id: 'wind-toggle', key: 'showWind', update: updateWindLayer },
         { id: 'clouds-toggle', key: 'showClouds', update: updateCloudLayer },
@@ -286,7 +288,6 @@ async function initialize() {
     // Initialize map
     const map = initializeMap();
     setLayersMap(map);
-    setAnimationsMap(map);
     setMeasurementMap(map);
 
     // Load saved settings
@@ -308,8 +309,6 @@ async function initialize() {
     startAutoRefresh();
 
     // Setup periodic updates
-    // setInterval(updateRadarAgeDisplay, 1000);
-    // setInterval(updateLightningAgeDisplay, 1000);
     setInterval(updateCountdownDisplay, 1000);
     setInterval(fetchAvailableRadarTimes, 10 * 60 * 1000);
 

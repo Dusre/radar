@@ -27,13 +27,6 @@ export async function fetchLightningData() {
         statusEl.textContent = `Ladattu ${lightningData.length} salamaa`;
         statusEl.className = 'status success';
         
-        if (lightningData.length > 0) {
-            const newestTimestamp = Math.max(...lightningData.map(d => d.timestamp));
-            if (newestTimestamp > state.newestStrikeTimestamp) {
-                state.newestStrikeTimestamp = newestTimestamp;
-            }
-        }
-        
         state.lightningData = {
             type: 'FeatureCollection',
             features: lightningData.map(d => ({
