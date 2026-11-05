@@ -41,6 +41,21 @@ function saveMapPosition(map) {
     }
 }
 
+// Radar layers are double-buffered (see updateRadarLayer in layers.js), so more than one is created
+export function createRadarLayer(opacity = 0.7) {
+    return L.tileLayer.wms('https://openwms.fmi.fi/geoserver/Radar/wms', {
+        layers: 'Radar:suomi_dbz_eureffin',
+        format: 'image/png',
+        transparent: true,
+        opacity,
+        zIndex: 10,
+        attribution: 'Säätutka © FMI',
+        keepBuffer: 2,
+        updateWhenIdle: false,
+        updateWhenZooming: false
+    });
+}
+
 export function initializeMap() {
     const mapPosition = getSavedMapPosition();
     const map = L.map('map', {
@@ -65,17 +80,7 @@ export function initializeMap() {
         tms: false
     }).addTo(map);
     
-    layers.fmiRadar = L.tileLayer.wms('https://openwms.fmi.fi/geoserver/Radar/wms', {
-        layers: 'Radar:suomi_dbz_eureffin',
-        format: 'image/png',
-        transparent: true,
-        opacity: 0.7,
-        zIndex: 10,
-        attribution: 'Säätutka © FMI',
-        keepBuffer: 2,
-        updateWhenIdle: false,
-        updateWhenZooming: false
-    }).addTo(map);
+    layers.fmiRadar = createRadarLayer(0.7).addTo(map);
     
     // Initialize lightning layer with canvas renderer
     const canvasRenderer = L.canvas({ padding: 0.5 });

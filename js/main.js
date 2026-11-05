@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { state, layers } from './state.js';
+import { state } from './state.js';
 import { initializeMap } from './map.js';
 import {
     setMap as setLayersMap,
@@ -9,7 +9,8 @@ import {
     updateCloudLayer,
     updateHumidityLayer,
     updatePressureLayer,
-    updateRadarLayer
+    updateRadarLayer,
+    setRadarOpacity
 } from './layers.js';
 import {
     setMap as setAnimationsMap,
@@ -111,7 +112,7 @@ function loadSettings() {
     document.getElementById('opacity-slider').value = settings.radarOpacity;
     document.getElementById('opacity-value').textContent = Math.round(settings.radarOpacity * 100) + '%';
 
-    layers.fmiRadar.setOpacity(settings.radarOpacity);
+    setRadarOpacity(settings.radarOpacity);
 
     // Ensure only one layer is active
     const activeToggles = [
@@ -183,7 +184,7 @@ function setupEventListeners() {
 
     opacitySlider.addEventListener('input', (e) => {
         const value = parseFloat(e.target.value);
-        layers.fmiRadar.setOpacity(value);
+        setRadarOpacity(value);
         localStorage.setItem('radarOpacity', value);
         opacityValue.textContent = Math.round(value * 100) + '%';
     });

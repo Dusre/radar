@@ -13,6 +13,7 @@ import {
     getWindArrowColor
 } from './utils.js';
 import { fetchWeatherParameter, fetchWindData } from './data-fetchers.js';
+import { createRadarLayer } from './map.js';
 
 let map = null;
 
@@ -374,14 +375,39 @@ export async function updatePressureLayer() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Radar (double-buffered)
+//
+// Only one radar layer is visible at a time (layers.fmiRadar). To change frame,
+// a second layer is added hidden (opacity 0), loaded with the new time, and
+// swapped in once all its tiles have arrived, so the old frame stays on screen
+// until the new one is ready. The old layer is then removed from the map and
+// kept as a spare for the next change.
+// ---------------------------------------------------------------------------
+
+const RADAR_SETTLE_MS = 250;    // let Leaflet's ~200 ms tile fade-in finish before swapping
+const RADAR_FALLBACK_MS = 5000; // swap anyway if 'load' never fires
+
+let radarOpacity = 0.7;
+let pendingRadar = null;  // loading, hidden
+let spareRadar = null;    // off the map, ready for reuse
+let radarToken = 0;
+let radarSettleTimer = null;
+let radarFallbackTimer = null;
+
+export function setRadarOpacity(value) {
+    radarOpacity = value;
+    if (layers.fmiRadar) layers.fmiRadar.setOpacity(value);
+}
+
 /**
- * Rewrites the radar layer's WMS params in place for the given time
- * (null = live). Historical frames never change, so they get no cache-buster
- * and can be served from the browser cache. Live frames get one; during
- * animation it stays constant so preloaded tiles match what is drawn.
+ * Rewrites a radar layer's WMS params in place for the given time (null = live).
+ * Historical frames never change, so they get no cache-buster and can be served
+ * from the browser cache. Live frames get one; during animation it stays
+ * constant so preloaded tiles match what is drawn.
  */
-function applyRadarParams(time) {
-    const p = layers.fmiRadar.wmsParams;
+function applyRadarParams(layer, time) {
+    const p = layer.wmsParams;
     delete p.time;
     delete p._cacheBust;
 
@@ -394,9 +420,53 @@ function applyRadarParams(time) {
     }
 }
 
+function commitRadarFrame(incoming, token) {
+    if (token !== radarToken || pendingRadar !== incoming) return;
+
+    clearTimeout(radarSettleTimer);
+    clearTimeout(radarFallbackTimer);
+    incoming.off('load');
+
+    const outgoing = layers.fmiRadar;
+    incoming.setOpacity(radarOpacity);
+    layers.fmiRadar = incoming;
+    pendingRadar = null;
+
+    if (outgoing && outgoing !== incoming) {
+        map.removeLayer(outgoing);
+        spareRadar = outgoing;
+    }
+}
+
 export function updateRadarLayer() {
-    applyRadarParams(getHistoricalRadarTime());
-    layers.fmiRadar.setParams({}); // params already applied; this triggers the redraw
+    const time = getHistoricalRadarTime();
+    const token = ++radarToken;
+
+    clearTimeout(radarSettleTimer);
+    clearTimeout(radarFallbackTimer);
+
+    // If a frame is still loading, retarget it instead of stacking another layer
+    let incoming = pendingRadar;
+    if (!incoming) {
+        incoming = spareRadar || createRadarLayer(0);
+        spareRadar = null;
+        pendingRadar = incoming;
+    }
+
+    incoming.off('load');
+    applyRadarParams(incoming, time);
+    incoming.setOpacity(0);
+    incoming.on('load', () => {
+        clearTimeout(radarSettleTimer);
+        radarSettleTimer = setTimeout(() => commitRadarFrame(incoming, token), RADAR_SETTLE_MS);
+    });
+    radarFallbackTimer = setTimeout(() => commitRadarFrame(incoming, token), RADAR_FALLBACK_MS);
+
+    if (map.hasLayer(incoming)) {
+        incoming.redraw();
+    } else {
+        incoming.addTo(map);
+    }
 }
 
 /**
@@ -407,7 +477,7 @@ export function getRadarTileUrls(step) {
     const layer = layers.fmiRadar;
     const snapshot = { ...layer.wmsParams };
 
-    applyRadarParams(step === 0 ? null : getRadarTimeForStep(step));
+    applyRadarParams(layer, step === 0 ? null : getRadarTimeForStep(step));
 
     const urls = Object.values(layer._tiles || {})
         .map(tile => tile.coords)
