@@ -1,8 +1,10 @@
+import { Map as LeafletMap, TileLayer, WMSTileLayer, Canvas, GeoJSON, CircleMarker } from 'leaflet';
 import { layers } from './state.js';
+import { ProjCRS } from './crs.js';
 
 // Define Finnish coordinate system
 const proj4_3067_def = '+proj=utm +zone=35 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
-const crs_3067 = new L.Proj.CRS('EPSG:3067', proj4_3067_def, {
+const crs_3067 = new ProjCRS('EPSG:3067', proj4_3067_def, {
     resolutions: [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5],
     origin: [-548576, 8388608]
 });
@@ -43,7 +45,7 @@ function saveMapPosition(map) {
 
 // Radar layers are double-buffered (see updateRadarLayer in layers.js), so more than one is created
 export function createRadarLayer(opacity = 0.7) {
-    return L.tileLayer.wms('https://openwms.fmi.fi/geoserver/Radar/wms', {
+    return new WMSTileLayer('https://openwms.fmi.fi/geoserver/Radar/wms', {
         layers: 'Radar:suomi_dbz_eureffin',
         format: 'image/png',
         transparent: true,
@@ -58,21 +60,20 @@ export function createRadarLayer(opacity = 0.7) {
 
 export function initializeMap() {
     const mapPosition = getSavedMapPosition();
-    const map = L.map('map', {
+    const map = new LeafletMap('map', {
         crs: crs_3067,
         minZoom: 1,
         maxZoom: 8,
         center: mapPosition.center,
         zoom: mapPosition.zoom,
-        preferCanvas: true, 
-        renderer: L.canvas()
+        renderer: new Canvas()
     });
     
     // Save map position on move
     map.on('moveend', () => saveMapPosition(map));
     
     // Add base layers
-    layers.localMap = L.tileLayer('local_tiles/{z}/{y}/{x}.png', {
+    layers.localMap = new TileLayer('local_tiles/{z}/{y}/{x}.png', {
         attribution: '© Maanmittauslaitos, aineisto CC BY 4.0',
         minZoom: 1,
         maxZoom: 8,
@@ -83,8 +84,8 @@ export function initializeMap() {
     layers.fmiRadar = createRadarLayer(0.7).addTo(map);
     
     // Initialize lightning layer with canvas renderer
-    const canvasRenderer = L.canvas({ padding: 0.5 });
-    layers.lightning = L.geoJSON(null, {
+    const canvasRenderer = new Canvas({ padding: 0.5 });
+    layers.lightning = new GeoJSON(null, {
         renderer: canvasRenderer,
         pointToLayer: (feature, latlng) => {
             const ageMinutes = (Date.now() - feature.properties.timestamp) / 60000;
@@ -92,7 +93,7 @@ export function initializeMap() {
             if (ageMinutes < 5) color = '#ff0000';
             else if (ageMinutes < 10) color = '#ff8800';
             
-            return L.circleMarker(latlng, {
+            return new CircleMarker(latlng, {
                 radius: 4,
                 fillColor: color,
                 color: '#000',

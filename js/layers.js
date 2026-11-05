@@ -1,3 +1,4 @@
+import { Marker, DivIcon } from 'leaflet';
 import { state, layers } from './state.js';
 import { CONFIG } from './config.js';
 import {
@@ -71,8 +72,8 @@ export async function updateTemperatureLayer() {
         const bgColor = getColorForTemperature(station.value);
         const extreme = getTemperatureExtreme(station.value);
 
-        const label = L.marker([station.lat, station.lng], {
-            icon: L.divIcon({
+        const label = new Marker([station.lat, station.lng], {
+            icon: new DivIcon({
                 className: 'temp-label' + (extreme ? ` temp-label--${extreme}` : ''),
                 html: `<div style="background: ${bgColor};">${station.value.toFixed(0)}°C</div>`,
                 iconSize: null, // Let CSS handle sizing
@@ -149,8 +150,8 @@ export async function updateWindLayer() {
         </g>
         </svg>`;
 
-        const marker = L.marker([obs.lat, obs.lng], {
-            icon: L.divIcon({
+        const marker = new Marker([obs.lat, obs.lng], {
+            icon: new DivIcon({
                 className: 'wind-label',
                 html: `
                     <div class="wind-arrow" style="transform: rotate(${(direction + 180) % 360}deg);">${arrowSVG}</div>
@@ -215,8 +216,8 @@ export async function updateCloudLayer() {
         const cloudInfo = getCloudIcon(coverage);
         const percentage = Math.round((coverage / 8) * 100);
 
-        const marker = L.marker([station.lat, station.lng], {
-            icon: L.divIcon({
+        const marker = new Marker([station.lat, station.lng], {
+            icon: new DivIcon({
                 className: 'cloud-label',
                 html: `
 				<div class="cloud-icon-container">
@@ -274,8 +275,8 @@ export async function updateHumidityLayer() {
 
     data.forEach(obs => {
         const color = getColorForHumidity(obs.value);
-        const label = L.marker([obs.lat, obs.lng], {
-            icon: L.divIcon({
+        const label = new Marker([obs.lat, obs.lng], {
+            icon: new DivIcon({
                 className: 'humidity-label',
                 html: `<div style="background: ${color};">${obs.value.toFixed(0)}%</div>`,
                 iconSize: null,
@@ -330,8 +331,8 @@ export async function updatePressureLayer() {
         const indicatorColor = getColorForPressure(obs.value);
         const bgColor = getPressureBackground(obs.value);
 
-        const label = L.marker([obs.lat, obs.lng], {
-            icon: L.divIcon({
+        const label = new Marker([obs.lat, obs.lng], {
+            icon: new DivIcon({
                 className: 'pressure-label',
                 html: `<div style="background: ${bgColor}; --indicator-color: ${indicatorColor};">${obs.value.toFixed(0)} hPa</div>`,
                 iconSize: null,

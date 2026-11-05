@@ -1,3 +1,5 @@
+import { LayerGroup } from 'leaflet';
+
 export const state = {
     lightningData: { type: "FeatureCollection", features: [] },
     nextRefreshTimestamp: null,
@@ -11,11 +13,11 @@ export const state = {
 };
 
 export const layers = {
-    wind: L.layerGroup(),
-    humidity: L.layerGroup(),
-    pressure: L.layerGroup(),
-    temperature: L.layerGroup(),
-    clouds: L.layerGroup(),
+    wind: new LayerGroup(),
+    humidity: new LayerGroup(),
+    pressure: new LayerGroup(),
+    temperature: new LayerGroup(),
+    clouds: new LayerGroup(),
     lightning: null,
     fmiRadar: null,
     localMap: null

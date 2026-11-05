@@ -1,3 +1,4 @@
+import { Marker, DivIcon, Polyline, LatLng } from 'leaflet';
 import { state } from './state.js';
 
 let measurementState = {
@@ -63,8 +64,8 @@ function formatDistance(meters) {
 }
 
 function createMeasurementMarker(latlng) {
-    const marker = L.marker(latlng, {
-        icon: L.divIcon({
+    const marker = new Marker(latlng, {
+        icon: new DivIcon({
             className: 'measurement-marker-icon',
             html: `<div class="measurement-marker"></div>`,
             iconSize: [12, 12],
@@ -92,13 +93,13 @@ function updateMeasurement() {
             map.removeLayer(measurementState.line);
         }
         
-        measurementState.line = L.polyline(measurementState.points, {
+        measurementState.line = new Polyline(measurementState.points, {
             className: 'measurement-line',
             interactive: false
         }).addTo(map);
         
         // Add distance label at midpoint
-        const midpoint = L.latLng(
+        const midpoint = new LatLng(
             (measurementState.points[0].lat + measurementState.points[1].lat) / 2,
             (measurementState.points[0].lng + measurementState.points[1].lng) / 2
         );
@@ -107,8 +108,8 @@ function updateMeasurement() {
             map.removeLayer(measurementState.distanceLabel);
         }
         
-        measurementState.distanceLabel = L.marker(midpoint, {
-            icon: L.divIcon({
+        measurementState.distanceLabel = new Marker(midpoint, {
+            icon: new DivIcon({
                 className: 'measurement-distance-label-icon',
                 html: `<div class="measurement-label">${formattedDistance}</div>`,
                 iconSize: null,

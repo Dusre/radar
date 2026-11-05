@@ -28,11 +28,8 @@ import {
     initializeMeasurement
 } from './measurement.js';
 
-// Check that required libraries are loaded
-if (typeof L === 'undefined') {
-    console.error('Leaflet library failed to load');
-    document.body.innerHTML = '<div style="padding: 20px; color: red;">Error: Failed to load required libraries. Please refresh the page.</div>';
-} else if (typeof proj4 === 'undefined') {
+// Check that required libraries are loaded (Leaflet itself is an ES module import now)
+if (typeof proj4 === 'undefined') {
     console.error('Proj4 library failed to load');
     document.body.innerHTML = '<div style="padding: 20px; color: red;">Error: Failed to load required libraries. Please refresh the page.</div>';
 } else {

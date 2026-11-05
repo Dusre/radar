@@ -17,19 +17,18 @@
     <link rel="preconnect" href="https://opendata.fmi.fi">
 
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@2.0.0-beta.1/dist/leaflet.css" crossorigin="anonymous" />
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/styles.css">
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+    <!-- Leaflet 2 is ESM-only; resolve the bare 'leaflet' specifier used by the modules -->
+    <script type="importmap">
+    { "imports": { "leaflet": "https://unpkg.com/leaflet@2.0.0-beta.1/dist/leaflet.js" } }
+    </script>
 
     <!-- Proj4js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
-
-    <!-- Proj4Leaflet -->
-    <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
 </head>
 
 <body>
